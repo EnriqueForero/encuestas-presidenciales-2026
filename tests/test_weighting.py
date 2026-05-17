@@ -21,16 +21,28 @@ from encuestas_lib.config import SurveyEntry, WeightingConfig
 def surveys():
     return [
         SurveyEntry(
-            id="a", encuestadora="Atlas", fecha=date(2026, 4, 25),
-            reader="atlas", path=Path("a.csv"), n_muestra=2000,
+            id="a",
+            encuestadora="Atlas",
+            fecha=date(2026, 4, 25),
+            reader="atlas",
+            path=Path("a.csv"),
+            n_muestra=2000,
         ),
         SurveyEntry(
-            id="b", encuestadora="Invamer", fecha=date(2026, 4, 11),
-            reader="invamer", path=Path("b.csv"), n_muestra=1200,
+            id="b",
+            encuestadora="Invamer",
+            fecha=date(2026, 4, 11),
+            reader="invamer",
+            path=Path("b.csv"),
+            n_muestra=1200,
         ),
         SurveyEntry(
-            id="c", encuestadora="CNC", fecha=date(2026, 1, 15),
-            reader="cnc_sav", path=Path("c.csv"), n_muestra=800,
+            id="c",
+            encuestadora="CNC",
+            fecha=date(2026, 1, 15),
+            reader="cnc_sav",
+            path=Path("c.csv"),
+            n_muestra=800,
         ),
     ]
 

@@ -138,10 +138,14 @@ class AnalysisPipeline:
         tablas["sesgo_genero"] = sesgo_por_encuestadora(df, pesos, "genero")
         tablas["sesgo_edad"] = sesgo_por_encuestadora(df, pesos, "edad_grupo")
         tablas["sesgo_region"] = sesgo_por_encuestadora(df, pesos, "region")
-        # Indecisos: el universo es el original (sin filtrar), pero la
-        # función ya usa `vigentes` para decidir quién cuenta como indeciso.
-        tablas["indecisos_total"] = tabla_indecisos_total(df, pesos, vigentes)
-        for dim_name, dim_df in tabla_indecisos_demograficas(df, pesos, vigentes).items():
+        # Indecisos: el universo es el original (sin filtrar). Se usa
+        # `candidatos_principales` —no `vigentes`— para definir quién es
+        # candidato "real", replicando el comportamiento del repo original
+        # (CANDIDATOS_REALES = 13 candidatos vigentes al corte). Los votos a
+        # candidatos históricos en encuestas antiguas cuentan como indecisos.
+        cands_principales = self.config.candidatos_principales or vigentes
+        tablas["indecisos_total"] = tabla_indecisos_total(df, pesos, cands_principales)
+        for dim_name, dim_df in tabla_indecisos_demograficas(df, pesos, cands_principales).items():
             tablas[f"indecisos_{dim_name}"] = dim_df
 
         # 4. Tablas avanzadas (NUEVAS)

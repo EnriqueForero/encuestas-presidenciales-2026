@@ -49,9 +49,7 @@ def trend_primera_vuelta(
     Returns:
         DataFrame [fecha, primera_vuelta, valor_punto, valor_suavizado].
     """
-    base = calcular_por_encuesta(
-        df, group_cols=["primera_vuelta"], normalize_within=["primera_vuelta"]
-    )
+    base = calcular_por_encuesta(df, group_cols=["primera_vuelta"], normalize_within=[])
     if base.empty:
         return pd.DataFrame(columns=["fecha", "primera_vuelta", "valor_punto", "valor_suavizado"])
 
@@ -260,9 +258,7 @@ def volatilidad_encuestadora(
     if "primera_vuelta" not in df.columns:
         return pd.DataFrame()
 
-    base = calcular_por_encuesta(
-        df, group_cols=["primera_vuelta"], normalize_within=["primera_vuelta"]
-    )
+    base = calcular_por_encuesta(df, group_cols=["primera_vuelta"], normalize_within=[])
     base = base[base["primera_vuelta"].isin(set(candidatos_vigentes))].copy()
 
     out = (

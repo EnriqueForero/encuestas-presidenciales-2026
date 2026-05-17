@@ -317,3 +317,29 @@ special_categories:
 
 # Las categorías "blanco", "ns_nr", "ninguno", "no_votaria", "otro", "no_se"
 # son tratadas como INDECISOS por analysis/tables.py (configurable).
+
+# ════════════════════════════════════════════════════════════════════════════
+# Candidatos principales (para cálculo de indecisos)
+#
+# Subconjunto de `vigentes` que define el "universo en carrera" al momento
+# del corte (2026-04-24). Los votos para candidatos fuera de esta lista
+# (incluyendo candidatos históricos en encuestas viejas) se tratan como
+# INDECISOS, replicando el comportamiento del repo original.
+#
+# Actualizar esta lista cuando un candidato se retire o uno nuevo se
+# oficialice. NO incluir "Voto en blanco" — se maneja como especial.
+# ════════════════════════════════════════════════════════════════════════════
+candidatos_principales:
+  - Iván Cepeda
+  - Abelardo de la Espriella
+  - Paloma Valencia
+  - Sergio Fajardo
+  - Claudia López
+  - Santiago Botero
+  - Luis Gilberto Murillo
+  - Roy Barreras
+  - Miguel Uribe Londoño
+  - Mauricio Lizcano
+  - Carlos Caicedo
+  - Sondra Macollins
+  - Clara López

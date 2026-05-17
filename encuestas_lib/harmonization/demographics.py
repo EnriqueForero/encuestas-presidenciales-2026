@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import pandas as pd
 
 from encuestas_lib.harmonization.candidates import normalize_text
@@ -174,10 +176,8 @@ def aplicar_mapa_con_int(serie: pd.Series, mapa: dict[str, str]) -> pd.Series:
         if pd.isna(x):
             return ""
         s = str(x).strip()
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             s = str(int(float(s)))
-        except (ValueError, TypeError):
-            pass
         return normalize_text(s)
 
     s_norm = serie.map(_coerce)

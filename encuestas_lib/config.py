@@ -98,6 +98,14 @@ class Config:
     weighting: WeightingConfig
     candidates_raw: list[dict[str, Any]]  # se procesa en harmonization/candidates.py
     special_categories_raw: list[dict[str, Any]]
+    candidatos_principales: frozenset[str] = field(default_factory=frozenset)
+    """Subconjunto de vigentes considerados "en carrera" para el cálculo de indecisos.
+
+    Replica el comportamiento del repo original (CANDIDATOS_REALES): los votos
+    a candidatos fuera de este conjunto —incluyendo candidatos históricos en
+    encuestas antiguas— se tratan como indecisos.  Configurado en
+    ``candidates.yaml → candidatos_principales``.
+    """
 
     # ────────────────────────────────────────────────────────────────────
     @classmethod
@@ -167,6 +175,9 @@ class Config:
             cands_doc = yaml.safe_load(f)
         candidates_raw = cands_doc.get("candidates", [])
         special_categories_raw = cands_doc.get("special_categories", [])
+        candidatos_principales: frozenset[str] = frozenset(
+            cands_doc.get("candidatos_principales", [])
+        )
 
         # ── Weights ──
         with weights_yaml.open(encoding="utf-8") as f:
@@ -191,6 +202,7 @@ class Config:
             weighting=weighting,
             candidates_raw=candidates_raw,
             special_categories_raw=special_categories_raw,
+            candidatos_principales=candidatos_principales,
         )
 
 
