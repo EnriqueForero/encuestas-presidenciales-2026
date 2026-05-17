@@ -76,8 +76,8 @@ encuestas/
 ## Instalación
 
 ```bash
-git clone https://github.com/PabloManriqueo/Analisis-microdatos-encuestas
-cd Analisis-microdatos-encuestas
+git clone https://github.com/EnriqueForero/encuestas-presidenciales-2026
+cd encuestas-presidenciales-2026
 python -m venv .venv
 source .venv/bin/activate          # Linux/macOS
 # .venv\Scripts\activate            # Windows
