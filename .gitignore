@@ -1,0 +1,87 @@
+# ════════════════════════════════════════════════════════════════════
+# .gitignore — encuestas-presidenciales-co
+# Generado automáticamente por el notebook de publicación.
+# PRINCIPIO: solo va a git el CÓDIGO.
+# ════════════════════════════════════════════════════════════════════
+
+
+# ── Python ────────────────────────────────────────────────────────────
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+
+
+# ── Datos y archivos binarios ─────────────────────────────────────────
+*.coverage
+*.csv
+*.gif
+*.ipynb
+*.jpeg
+*.jpg
+*.parquet
+*.pdf
+*.png
+*.sav
+*.xls
+*.xlsx
+*.zip
+
+
+# ── Carpetas excluidas ────────────────────────────────────────────────
+.eggs/
+.git/
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+__pycache__/
+build/
+data/
+dist/
+encuestas_lib.egg-info/
+env/
+mnt/
+venv/
+z. Backup/
+z. Códigos Consolidados/
+
+
+# ── Archivos específicos excluidos ────────────────────────────────────
+analisis_consolidado.json
+analisis_consolidado.xlsx
+coverage.xml
+encuestas_concatenadas.parquet
+encuestas_concatenadas.xlsx
+setup.cfg
+setup.py
+
+
+# ── Carpetas de trabajo personal ──────────────────────────────────────
+z. */
+z.*/
+
+
+# ── IDE ───────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+
+# ── Credenciales ──────────────────────────────────────────────────────
+.env
+.env.local
+secrets.json
+*_token.txt
+*.pem
+*.key
+
+
+# ── Excepciones (siempre incluir) ────────────────────────────────
+# Estas reglas DEBEN ser las últimas del archivo.
+# En .gitignore la última coincidencia gana; si una regla
+# de exclusión aparece después de una excepción, la anula.
+!notebooks/00_run_full_pipeline.ipynb

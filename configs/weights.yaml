@@ -1,0 +1,69 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  ESTRATEGIA DE PONDERACIÓN ENTRE ENCUESTAS
+# ════════════════════════════════════════════════════════════════════════════
+#
+# DECISIÓN METODOLÓGICA: cómo combinar resultados de múltiples encuestas
+# realizadas en fechas distintas y con tamaños muestrales distintos.
+#
+# Esta es una decisión normativa, no técnica. Documentarla aquí permite que
+# sea auditable, replicable y discutible.
+#
+# Estrategias disponibles (implementadas en encuestas_lib/analysis/weighting.py):
+#
+#   * uniform           — todas las encuestas pesan igual.
+#   * sample_size       — peso ∝ tamaño muestral (n).
+#   * recency_decay     — peso = exp(-(t - t_max) / tau).
+#   * inverse_recency_size — peso = n × decay(días_desde_corte).  ← RECOMENDADO
+#   * manual            — leer pesos explícitos por (encuestadora, fecha).
+#
+# ════════════════════════════════════════════════════════════════════════════
+
+active_strategy: inverse_recency_size
+
+strategies:
+
+  uniform:
+    description: "Todas las encuestas pesan igual. Útil como contraste."
+
+  sample_size:
+    description: |
+      Peso proporcional al tamaño muestral declarado por la encuestadora.
+      Pro: respeta varianza estadística esperada.
+      Contra: ignora antigüedad — encuesta de hace 4 meses con n=10000
+      domina sobre una reciente con n=1000.
+
+  recency_decay:
+    description: |
+      Decaimiento exponencial con la fecha. El peso decae con vida media
+      `half_life_days`. Reference date = fecha más reciente del conjunto.
+    params:
+      half_life_days: 21
+
+  inverse_recency_size:
+    description: |
+      Combina tamaño muestral y vida media temporal.
+      peso = n_muestra × (0.5 ** (días_desde_corte / half_life_days))
+      Donde "corte" = max(fecha) de las encuestas incluidas.
+      Esta es la estrategia recomendada por defecto.
+    params:
+      half_life_days: 21
+
+  manual:
+    description: |
+      Pesos arbitrarios por (encuestadora, fecha). Usar SOLO cuando
+      se tenga justificación documentada (e.g., calidad reportada por
+      tercero independiente, ajuste post-electoral). Igualar valores
+      hardcoded del repo original para reproducibilidad.
+    weights:
+      - { encuestadora: "Invamer",     fecha: "2026-04-25", peso: 1766 }
+      - { encuestadora: "Atlas Intel", fecha: "2026-04-10", peso:  707 }
+      - { encuestadora: "GAD3",        fecha: "2026-03-16", peso:   89 }
+      - { encuestadora: "CNC",         fecha: "2026-03-16", peso:  220 }
+      - { encuestadora: "Atlas Intel", fecha: "2026-03-12", peso:  175 }
+      - { encuestadora: "Atlas Intel", fecha: "2026-02-28", peso:   29 }
+      - { encuestadora: "Invamer",     fecha: "2026-02-25", peso:   22 }
+      - { encuestadora: "CNC",         fecha: "2026-02-20", peso:   26 }
+      - { encuestadora: "GAD3",        fecha: "2026-02-16", peso:   15 }
+      - { encuestadora: "Atlas Intel", fecha: "2026-02-05", peso:   29 }
+      - { encuestadora: "GAD3",        fecha: "2026-01-13", peso:    1 }
+      - { encuestadora: "Atlas Intel", fecha: "2026-01-09", peso:  175 }

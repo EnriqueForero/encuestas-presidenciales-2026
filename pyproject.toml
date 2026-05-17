@@ -1,0 +1,134 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "encuestas-presidenciales-co"
+version = "0.1.0"
+description = "Pipeline modular para ingestión, armonización y análisis de microdatos de encuestas presidenciales de Colombia 2026. Incluye lectores para Atlas Intel, GAD3, Invamer y CNC; ponderación entre encuestas; tablas básicas (intención de voto, demografía, indecisos, house effects) y análisis avanzados (tendencia temporal, transferencia PV→SV, margen de error con n efectivo de Kish, volatilidad por encuestadora)."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Néstor Enrique Forero Herrera", email = "enrique.economista@gmail.com"},
+]
+
+keywords = ["encuestas", "elecciones", "colombia", "microdatos", "pandas", "presidenciales", "cne", "atlas-intel", "gad3", "invamer", "cnc", "opinion-publica", "analisis-politico"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Sociology",
+    "Natural Language :: Spanish",
+]
+dependencies = [
+    "pandas>=2.1",
+    "numpy>=1.26",
+    "pyarrow>=14.0",
+    "pyreadstat>=1.2",
+    "openpyxl>=3.1",
+    "pyyaml>=6.0",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.8", "seaborn>=0.13", "plotly>=5.18", "statsmodels>=0.14"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.4", "mypy>=1.8", "jupyterlab>=4.0", "ipykernel>=6.29"]
+all = ["matplotlib>=3.8", "seaborn>=0.13", "plotly>=5.18", "statsmodels>=0.14"]
+
+[project.urls]
+Homepage      = "https://github.com/EnriqueForero/encuestas-presidenciales-2026"
+Repository    = "https://github.com/EnriqueForero/encuestas-presidenciales-2026"
+"Bug Tracker" = "https://github.com/EnriqueForero/encuestas-presidenciales-2026/issues"
+
+[tool.setuptools.packages.find]
+where   = [".]
+include = ["encuestas_lib*"]
+exclude = ["tests*", "notebooks*", "docs*"]
+
+[tool.setuptools.package-data]
+"encuestas_lib" = ["py.typed"]
+
+
+# ═══════════════════════════════════════════════════════════
+# Pytest
+# ═══════════════════════════════════════════════════════════
+[tool.pytest.ini_options]
+testpaths    = ["tests"]
+python_files = ["test_*.py"]
+addopts      = "-v --tb=short --strict-markers --cov=encuestas_lib --cov-report=term-missing --cov-report=xml --cov-fail-under=25"
+markers = [
+    "paridad: test de paridad binaria contra valores congelados",
+    "canario: test canario con datos externos (requiere variable de entorno)",
+    "smoke: test rapido end-to-end sobre golden_set.parquet",
+]
+
+
+# ═══════════════════════════════════════════════════════════
+# Coverage.py
+# ═══════════════════════════════════════════════════════════
+[tool.coverage.run]
+branch = true
+source = ["encuestas_lib"]
+omit = [
+    "*/tests/*",
+    "*/dashboard.py",
+    "*/visualizacion*.py",
+    "*/visualizacion_interactiva.py",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+precision    = 1
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "def __repr__",
+    "def __str__",
+]
+
+
+# ═══════════════════════════════════════════════════════════
+# Ruff (linter + formatter)
+# ═══════════════════════════════════════════════════════════
+[tool.ruff]
+line-length    = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",
+    "B008",
+    "N806",
+    "SIM108",
+    "UP007",
+    "UP045",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "N817",
+    "RUF012",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/__init__.py" = ["F401"]
+"__init__.py" = ["F401"]
+"tests/*" = ["N802"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["encuestas_lib"]
+
+[tool.ruff.format]
+quote-style  = "double"
+indent-style = "space"

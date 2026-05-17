@@ -1,0 +1,319 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  CANDIDATOS CANÓNICOS — PRESIDENCIALES COLOMBIA 2026
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Única fuente de verdad para nombres de candidatos. Cualquier cambio
+# (retiro, ingreso, fusión de coaliciones) se modifica AQUÍ, no en código.
+#
+# Campos:
+#   canonical    : nombre canónico (cómo se reporta en tablas finales)
+#   key          : llave corta para nombres de columnas (snake_case, sin tildes)
+#   status       : "vigente" | "retirado" | "no_oficializado"
+#   aliases      : patrones regex para detección en microdatos crudos
+#                  (orden importa: específico antes que genérico)
+#   bloque       : "izquierda" | "centro" | "derecha" | "otro" (uso descriptivo)
+# ════════════════════════════════════════════════════════════════════════════
+
+candidates:
+
+  - canonical: Iván Cepeda
+    key: cepeda
+    status: vigente
+    bloque: izquierda
+    aliases:
+      - "ivan cepeda"
+      - "i\\.\\s*cepeda"
+      - "cepeda castro"
+      - "cepeda"   # debe ir DESPUÉS de "efrain cepeda" en la lista global
+
+  - canonical: Efraín Cepeda
+    key: efrain_cepeda
+    status: vigente
+    bloque: derecha
+    aliases:
+      - "efrain cepeda"
+
+  - canonical: Abelardo de la Espriella
+    key: espriella
+    status: vigente
+    bloque: derecha
+    aliases: ["espriella"]
+
+  - canonical: Paloma Valencia
+    key: valencia
+    status: vigente
+    bloque: derecha
+    aliases:
+      - "paloma"
+      - "p\\.\\s*valencia"
+
+  - canonical: Sergio Fajardo
+    key: fajardo
+    status: vigente
+    bloque: centro
+    aliases: ["fajardo"]
+
+  - canonical: Claudia López
+    key: claudia
+    status: vigente
+    bloque: centro
+    aliases:
+      - "claudia"
+      - "c\\.\\s*lopez"
+
+  - canonical: Juan Carlos Pinzón
+    key: pinzon
+    status: vigente
+    bloque: centro
+    aliases: ["pinzon"]
+
+  - canonical: Roy Barreras
+    key: barreras
+    status: vigente
+    bloque: izquierda
+    aliases: ["barreras"]
+
+  - canonical: Vicky Dávila
+    key: davila
+    status: vigente
+    bloque: derecha
+    aliases:
+      - "vicky davila"
+      - "davila"
+
+  - canonical: Mauricio Cárdenas
+    key: cardenas
+    status: vigente
+    bloque: centro
+    aliases:
+      - "mauricio cardenas"
+      - "m\\.\\s*cardenas"
+
+  - canonical: Miguel Uribe Londoño
+    key: uribe_londono
+    status: vigente
+    bloque: derecha
+    aliases: ["uribe londo"]
+
+  - canonical: Mauricio Lizcano
+    key: lizcano
+    status: vigente
+    bloque: centro
+    aliases: ["lizcano"]
+
+  - canonical: Luis Gilberto Murillo
+    key: murillo
+    status: vigente
+    bloque: centro
+    aliases:
+      - "luis gilberto"
+      - "gilberto murillo"
+      - "murillo"
+
+  - canonical: Juan Manuel Galán
+    key: galan
+    status: vigente
+    bloque: centro
+    aliases: ["galan"]
+
+  - canonical: Aníbal Gaviria
+    key: gaviria
+    status: vigente
+    bloque: centro
+    aliases:
+      - "anibal gaviria"
+      - "gaviria"
+
+  - canonical: Carlos Caicedo
+    key: caicedo
+    status: vigente
+    bloque: izquierda
+    aliases:
+      - "carlos caicedo"
+      - "caicedo"
+
+  - canonical: Santiago Botero
+    key: botero
+    status: vigente
+    bloque: derecha
+    aliases:
+      - "santiago botero"
+      - "botero"
+
+  - canonical: Sondra Macollins
+    key: macollins
+    status: vigente
+    bloque: otro
+    aliases:
+      - "macollins"
+      - "sondra"
+
+  - canonical: Clara López
+    key: clara_lopez
+    status: vigente
+    bloque: izquierda
+    aliases:
+      - "clara lopez"
+      - "clara eugenia"
+      - "clara l\\."
+
+  - canonical: Juan Daniel Oviedo
+    key: oviedo
+    status: vigente
+    bloque: centro
+    aliases: ["oviedo"]
+
+  - canonical: David Luna
+    key: luna
+    status: vigente
+    bloque: centro
+    aliases:
+      - "david luna"
+      - "luna"
+
+  - canonical: Daniel Quintero
+    key: quintero
+    status: vigente
+    bloque: izquierda
+    aliases: ["quintero"]
+
+  - canonical: María Fernanda Cabal
+    key: cabal
+    status: vigente
+    bloque: derecha
+    aliases: ["cabal"]
+
+  - canonical: Juan Fernando Cristo
+    key: cristo
+    status: vigente
+    bloque: centro
+    aliases:
+      - "fernando cristo"
+      - "j\\.?\\s?f\\.?\\s?cristo"
+      - "juan\\s*fernando\\s*cristo"
+
+  # ─── No oficializados / referencia ───
+  - canonical: Germán Vargas Lleras
+    key: vargas_lleras
+    status: no_oficializado
+    bloque: centro
+    aliases: ["vargas lleras"]
+
+  - canonical: Enrique Peñalosa
+    key: penalosa
+    status: no_oficializado
+    bloque: centro
+    aliases: ["penalosa"]
+
+  - canonical: Felipe Córdoba
+    key: cordoba
+    status: no_oficializado
+    bloque: derecha
+    aliases:
+      - "felipe cordoba"
+      - "f\\.\\s*cordoba"
+
+  - canonical: Luis Carlos Reyes
+    key: reyes
+    status: no_oficializado
+    bloque: izquierda
+    aliases:
+      - "luis carlos reyes"
+      - "l\\.?\\s?c\\.?\\s?reyes"
+
+  - canonical: Camilo Romero
+    key: romero
+    status: no_oficializado
+    bloque: izquierda
+    aliases: ["camilo romero"]
+
+  - canonical: Daniel Palacios
+    key: palacios
+    status: no_oficializado
+    bloque: derecha
+    aliases: ["daniel palacios"]
+
+  - canonical: Maurice Armitage
+    key: armitage
+    status: no_oficializado
+    bloque: otro
+    aliases: ["armitage"]
+
+  - canonical: Paola Holguín
+    key: holguin
+    status: no_oficializado
+    bloque: derecha
+    aliases:
+      - "paola holguin"
+      - "holguin"
+
+  - canonical: José Manuel Restrepo
+    key: restrepo
+    status: no_oficializado
+    bloque: centro
+    aliases:
+      - "jose manuel restrepo"
+      - "restrepo"
+
+  - canonical: Gustavo Matamoros
+    key: matamoros
+    status: no_oficializado
+    bloque: otro
+    aliases: ["matamoros"]
+
+  - canonical: Aída Marina Quilcué
+    key: quilcue
+    status: no_oficializado
+    bloque: izquierda
+    aliases:
+      - "quilcue"
+      - "quilcu"
+
+# Categorías especiales (no son candidatos pero pueden aparecer en P. de voto)
+special_categories:
+  - canonical: Voto en blanco
+    key: blanco
+    aliases:
+      - "voto.*blanco"
+      - "en blanco"
+      - "blanco.*nulo"
+      - "blank"
+      - "nulo"
+
+  - canonical: NS/NR
+    key: ns_nr
+    aliases:
+      - "ns/nc"
+      - "ns/nr"
+      - "no sabe"
+      - "no responde"
+      - "^ns$"
+      - "^nr$"
+      - "nsnr"
+
+  - canonical: Ninguno
+    key: ninguno
+    aliases: ["ninguno"]
+
+  - canonical: No votaría
+    key: no_votaria
+    aliases:
+      - "no votar"
+      - "no ira"
+      - "no piensa"
+      - "no votaria"
+
+  - canonical: Otro candidato
+    key: otro
+    aliases:
+      - "otro candidato"
+      - "^otro$"
+
+  - canonical: No sé
+    key: no_se
+    aliases:
+      - "no se"
+      - "no sabe"
+
+# Las categorías "blanco", "ns_nr", "ninguno", "no_votaria", "otro", "no_se"
+# son tratadas como INDECISOS por analysis/tables.py (configurable).

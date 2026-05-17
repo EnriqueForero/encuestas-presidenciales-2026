@@ -1,0 +1,126 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  REGISTRO DE ENCUESTAS
+# ════════════════════════════════════════════════════════════════════════════
+#
+# Agregar una encuesta nueva NO requiere modificar código Python.
+# Si el formato ya está soportado (atlas | gad3_excel | gad3_sav | invamer | cnc_sav | cnc_excel),
+# basta con añadir una entrada a `surveys`.
+#
+# Si la encuestadora es nueva (Guarumo, Datexco, ...) ver README §"Agregar
+# una nueva encuesta — Caso 2": crear un Reader nuevo en
+# encuestas_lib/readers/ y registrarlo en registry.py.
+#
+# Campos obligatorios:
+#   id            : identificador único (snake_case, prefijo = encuestadora)
+#   encuestadora  : nombre canónico para reportes
+#   fecha         : ISO YYYY-MM-DD (mid-fieldwork o cierre)
+#   reader        : nombre registrado en encuestas_lib/readers/registry.py
+#   path          : ruta relativa a `paths.raw_dir` del config
+#
+# Campos opcionales:
+#   n_muestra     : tamaño muestral declarado (usado para ponderación)
+#   nota          : metadata libre (p. ej., versión de cuestionario)
+# ════════════════════════════════════════════════════════════════════════════
+
+surveys:
+
+  # ─────────────  Atlas Intel ─────────────
+  - id: atlas_2026_01_09
+    encuestadora: Atlas Intel
+    fecha: 2026-01-09
+    reader: atlas
+    path: "04. CNE-E-DG-2026-000755 - ATLAS INTEL/Atlas Semana E126 Raw Data 010926.xlsx"
+    n_muestra: 4520
+
+  - id: atlas_2026_02_05
+    encuestadora: Atlas Intel
+    fecha: 2026-02-05
+    reader: atlas
+    path: "13. CNE-E-DG-2026-004955 - ATLAS INTEL/Atlas Semana E226 Raw Data 020526_1 (1).csv"
+    n_muestra: 7298
+
+  - id: atlas_2026_02_28
+    encuestadora: Atlas Intel
+    fecha: 2026-02-28
+    reader: atlas
+    path: "27. CNE-E-DG-2026-008698 - ATLAS INTEL/Base de Dados Atlas Semana 022826_2.xlsx"
+    n_muestra: 6468
+
+  - id: atlas_2026_03_12
+    encuestadora: Atlas Intel
+    fecha: 2026-03-12
+    reader: atlas
+    path: "29. CNE-E-DG-2026-011140 - ATLAS INTEL/Base de Dados Atlas Semana 031226_1.xlsx"
+    n_muestra: 4291
+
+  - id: atlas_2026_04_10
+    encuestadora: Atlas Intel
+    fecha: 2026-04-10
+    reader: atlas
+    path: "36. CNE-E-DG-2026-014018 - ATLAS INTEL/Base de Dados Atlas Semana 041026_1.xlsx"
+    n_muestra: 3617
+
+  # ─────────────  GAD3  ─────────────
+  - id: gad3_2026_01_13
+    encuestadora: GAD3
+    fecha: 2026-01-13
+    reader: gad3_excel_v1
+    path: "05. CNE-E-DG-2026-001504 - GAD3/505-221 RCN Enero_4.xlsx"
+    n_muestra: 1207
+    nota: "Variante v1: columnas Q02/Q10/Q11A-G, Ponderación total"
+
+  - id: gad3_2026_02_16
+    encuestadora: GAD3
+    fecha: 2026-02-16
+    reader: gad3_sav
+    path: "23. CNE-E-DG-2026-008418 - GAD3/Anexo IV. B. Microdatos estudio (SPSS).sav"
+    n_muestra: 2473
+    nota: "Variante .sav: columnas Q02/Q08/Q09*, Ponderación"
+
+  - id: gad3_2026_03_16
+    encuestadora: GAD3
+    fecha: 2026-03-16
+    reader: gad3_excel_v2
+    path: "31. CNE-E-DG-2026-011911 - GAD3/Anexo IV.A.Microdatos estudio (Excel).xlsx"
+    n_muestra: 1200
+    nota: "Variante v2: columnas Q06/Q08 con prefijo separador"
+
+  # ─────────────  Invamer  ─────────────
+  - id: invamer_2026_02_25
+    encuestadora: Invamer
+    fecha: 2026-02-25
+    reader: invamer
+    path: "19. CNE-E-DG-2026-008198 - INVAMER/3. Data (Regsitros primarios).xlsx"
+    n_muestra: 3801
+    nota: "Colombia Opina 20"
+
+  - id: invamer_2026_04_25
+    encuestadora: Invamer
+    fecha: 2026-04-25
+    reader: invamer
+    path: "38. CNE-E-DG-2026-015879 - INVAMER/3. Data (Regsitros primarios).xlsx"
+    n_muestra: 3801
+    nota: "Colombia Opina 21"
+
+  # ─────────────  CNC  ─────────────
+  - id: cnc_2026_02_20
+    encuestadora: CNC
+    fecha: 2026-02-20
+    reader: cnc_sav
+    path: "25. CNE-E-DG-2026-009065 - CENTRO NACIONAL DE CONSULTORÍA/RevCambioFebrero/data/CC892901_BASE_REVISTA_CAMBIO.sav"
+    n_muestra: 3684
+
+  - id: cnc_2026_03_16
+    encuestadora: CNC
+    fecha: 2026-03-16
+    reader: cnc_excel
+    path: "34. CNE-E-DG-2026-012431 - CENTRO NACIONAL DE CONSULTORIA/Base de datos/CC893201_POLITICA_REVISTA_CAMBIO_TEXTOS.xlsx"
+    n_muestra: 2157
+
+  # ════════ Aquí abajo agregar futuras encuestas ════════
+  # - id: atlas_2026_05_22
+  #   encuestadora: Atlas Intel
+  #   fecha: 2026-05-22
+  #   reader: atlas
+  #   path: "...xlsx"
+  #   n_muestra: 3500
