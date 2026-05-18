@@ -3,11 +3,10 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versionado: [SemVer](https://semver.org/).
 
-## [0.2.4] — 2026-05-18 (calidad visual del trasvase del centro)
+## 2026-05-18 (calidad visual del trasvase del centro)
 
-Mejora estética de calidad editorial (referencia: La Silla Vacía) para la
-gráfica más leída del Step 12. Los 4 problemas reportados en la imagen
-provista por el usuario quedan resueltos.
+Mejora estética de calidad editorial para la
+gráfica más leída del Step 12. Los 4 problemas reportados en la imagen.
 
 ### Fixed (problemas visuales en `chart_trasvase_centro`)
 
@@ -63,13 +62,13 @@ provista por el usuario quedan resueltos.
 - **Bordes de barras** — `width=1.2` (antes `0.8`) para mejor definición.
 
 ### Validation
-- ✅ 191 tests pasan (186 v0.2.3 + 5 nuevos de regresión estética).
+- ✅ 191 tests pasan (186 + 5 nuevos de regresión estética).
 - ✅ `ruff check encuestas_lib tests` → All checks passed!
 - ✅ `ruff format --check` → 44 files already formatted.
 - ✅ Preview HTML generado y validado funcionalmente.
 
 ### Decisión arquitectónica documentada
-**No se migró a React + Recharts** aunque el usuario lo sugirió, porque:
+**No se migró a React + Recharts** porque:
 1. Plotly nativo cubre la calidad editorial requerida cuando se usa bien.
 2. El dashboard HTML auto-contenido de Plotly funciona offline sin
    servidor JS — un requisito del proyecto.
@@ -80,7 +79,7 @@ provista por el usuario quedan resueltos.
 
 ---
 
-## [0.2.3] — 2026-05-17 (publicación-ready)
+## 2026-05-17 (publicación-ready)
 
 ### Lint y formato listos para CI/CD
 
@@ -123,13 +122,13 @@ publicar_profesional(solo_github=True)   # ya no se bloquea por linting
 
 ---
 
-## [0.2.2] — 2026-05-17 (v7.1)
+## 2026-05-17
 
 ### Bugfix: paridad de schema entre charts y pipeline real
 
-El refactor v0.2.0/v0.2.1 introdujo dos charts con un **bug semántico
+El refactor introdujo dos charts con un **bug semántico
 heredado del v6 original**: asumían formato wide cuando el pipeline produce
-formato long (o pivot ortogonal). El bug no se manifestaba en v6 porque las
+formato long (o pivot ortogonal). El bug no se manifestaba en versión previa porque las
 celdas anteriores fallaban con el TypeError `yaxis` antes de llegar; al
 fixearse ese TypeError, el bug latente quedó al descubierto.
 
@@ -163,7 +162,7 @@ fixearse ese TypeError, el bug latente quedó al descubierto.
   función rompa el test antes que el notebook.
 
 ### Validation
-- **186 tests pasan** (178 de v0.2.1 + 8 nuevos).
+- **186 tests pasan** (178 de versión previa + 8 nuevos).
 - Smoke test del notebook: las 81 celdas compilan limpiamente.
 - Cero warnings de deprecation.
 
@@ -180,11 +179,11 @@ fixearse ese TypeError, el bug latente quedó al descubierto.
 
 ---
 
-## [0.2.1] — 2026-05-17 (v7)
+## 2026-05-17
 
 ### Cambio arquitectónico complementario: centralización total de parámetros
 
-Iteración sobre v0.2.0. El bug raíz ya estaba resuelto, pero **5 celdas delgadas
+Iteración sobre versión previa. El bug raíz ya estaba resuelto, pero **5 celdas delgadas
 seguían teniendo datos del documento forense hardcoded inline** — violando el
 principio de "una sola fuente de verdad" y la regla del usuario sobre
 parámetros centralizados.
@@ -236,7 +235,7 @@ parámetros centralizados.
   que solo *actualiza* las celdas leyendo desde `scripts/*_cells/*.py`.
 
 ### Validation
-- **178 tests pasan** (154 de v0.2.0 + 24 nuevos).  1 warning intencional
+- **178 tests pasan** (154 de versión previa + 24 nuevos).  1 warning intencional
   (test de tabla inexistente).  0 warnings de deprecation.
 - Todas las 81 celdas del notebook compilan limpiamente.
 - Reducción de LoC: ~1 400 → 279 líneas en cells Step 11/12 (-80 %).
@@ -257,7 +256,7 @@ Para tunear valores: edita `encuestas_lib/viz/charts/step12.py` en la sección
 
 ---
 
-## [0.2.0] — 2026-05-17
+## 2026-05-17
 
 ### Cambio arquitectónico mayor: paquete `encuestas_lib.viz`
 
@@ -339,7 +338,7 @@ fig.update_layout(title=..., yaxis=..., xaxis=...)
 
 ---
 
-## [0.1.0] — 2026-04 (baseline)
+## 2026-04 (baseline)
 
 - Pipeline modular de ingestión y armonización de microdatos
   (Atlas Intel, GAD3, Invamer, CNC).
