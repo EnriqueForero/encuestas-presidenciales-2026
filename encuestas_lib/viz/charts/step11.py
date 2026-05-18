@@ -12,6 +12,7 @@ notebook o del exportador HTML.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Final
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -451,6 +452,55 @@ def chart_perfil_indecisos(
 # ════════════════════════════════════════════════════════════════════════════
 #  11.5 — Stacked bars por dimensión (helper + tres figuras)
 # ════════════════════════════════════════════════════════════════════════════
+_OTROS_MINOR_LABEL: Final[str] = "Otros candidatos"
+_OTROS_MINOR_COLOR: Final[str] = "#7D8590"
+
+
+def _consolidar_minoritarios(
+    df_p: pd.DataFrame,
+    cands_plot: list[str],
+    *,
+    min_pct_visible: float,
+    cands_indecisos: frozenset[str],
+) -> tuple[pd.DataFrame, list[str]]:
+    """Consolidar candidatos minoritarios en una sola serie ``Otros candidatos``.
+
+    Un candidato es minoritario si su % máximo a través de todas las categorías
+    está por debajo de ``min_pct_visible``.  Los indecisos NUNCA se consolidan
+    (mantienen su identidad NS/NR, No votaría, etc.).
+
+    Args:
+        df_p: DataFrame ya normalizado (porcentajes).  Filas = categorías,
+            columnas = candidatos.
+        cands_plot: lista ordenada de candidatos.
+        min_pct_visible: umbral en %.  Default 3.0.
+        cands_indecisos: set de nombres canónicos de indecisos para NO
+            consolidarlos.
+
+    Returns:
+        Tupla ``(df_consolidado, cands_finales)`` con la nueva columna
+        ``"Otros candidatos"`` agregada si hay minoritarios.
+    """
+    if min_pct_visible <= 0:
+        return df_p, cands_plot
+
+    minoritarios = [
+        cd for cd in cands_plot if cd not in cands_indecisos and df_p[cd].max() < min_pct_visible
+    ]
+    if not minoritarios:
+        return df_p, cands_plot
+
+    out = df_p.drop(columns=minoritarios).copy()
+    out[_OTROS_MINOR_LABEL] = df_p[minoritarios].sum(axis=1).round(2)
+    # Reordenar: vigentes mayores → "Otros candidatos" → indecisos
+    finales_mayores = [
+        cd for cd in cands_plot if cd not in minoritarios and cd not in cands_indecisos
+    ]
+    finales_indecisos = [cd for cd in cands_plot if cd in cands_indecisos]
+    cands_finales = [*finales_mayores, _OTROS_MINOR_LABEL, *finales_indecisos]
+    return out, cands_finales
+
+
 def chart_stacked_bar(
     tablas: dict[str, pd.DataFrame],
     tabla_key: str,
@@ -460,8 +510,21 @@ def chart_stacked_bar(
     esconder_indecisos: bool = False,
     height: int = 420,
     toggle_buttons: bool = True,
+    min_pct_visible: float = 3.0,
 ) -> go.Figure:
     """Barras 100% apiladas: distribución de voto por una dimensión.
+
+    Mejoras v0.2.5:
+        - Los botones ``Con/Sin indecisos`` ahora **realmente alternan los
+          datos**, no solo el título (antes era teatro: ``method="relayout"``
+          sobre ``title.text`` ignorando las trazas).  Implementación: se
+          dibujan AMBOS sets de trazas (con + sin indecisos) y los botones
+          alternan ``visible=True/False`` via ``method="update"``.
+        - Los candidatos con voto máximo < ``min_pct_visible`` (default 3 %)
+          se consolidan en una sola serie gris ``"Otros candidatos"``.
+          Reduce el cluster verde/púrpura/marrón ilegible.  Tooltip mantiene
+          el detalle.
+        - Leyenda fuera del plot area, con margen inferior recalibrado.
 
     Args:
         tablas: dict del pipeline.
@@ -469,9 +532,14 @@ def chart_stacked_bar(
         dim_col: columna que aporta las categorías (e.g. ``region``).
         titulo: título principal.
         subtitle: subtítulo.
-        esconder_indecisos: si True, renormaliza descontando indecisos.
-        height: alto del lienzo.
-        toggle_buttons: si True, agrega botones para alternar "con/sin indecisos".
+        esconder_indecisos: si True, el estado INICIAL es "sin indecisos".
+            Los botones permiten alternar dinámicamente sin recargar.
+        height: alto del lienzo (recomendado: 380 para edad/género,
+            560 para región).
+        toggle_buttons: si True, agrega botones funcionales de toggle.
+        min_pct_visible: % máximo bajo el cual un candidato se considera
+            minoritario y se consolida en "Otros candidatos".  Pasa 0 para
+            desactivar la consolidación.
 
     Returns:
         ``go.Figure`` con la barra apilada o ``Figure`` vacía si faltan datos.
@@ -485,18 +553,61 @@ def chart_stacked_bar(
     if not cands_use:
         return _figura_vacia("No hay columnas de candidato en la tabla.")
 
-    if esconder_indecisos:
-        cands_plot = [cd for cd in cands_use if cd not in INDECISOS_CATS]
-        totales = t[cands_plot].sum(axis=1)
-        df_p = t[cands_plot].div(totales, axis=0).mul(100)
-    else:
-        cands_plot = cands_use
-        df_p = t[cands_plot].copy()
-
     dims = t[dim_col].tolist()
+
+    # ── 1. Calcular AMBOS sets de datos (con y sin indecisos) ──────────
+    # Con indecisos: usa todos los candidatos tal cual
+    df_con = t[cands_use].copy()
+    # Sin indecisos: renormaliza descontando indecisos
+    cands_sin = [cd for cd in cands_use if cd not in INDECISOS_CATS]
+    if cands_sin:
+        totales = t[cands_sin].sum(axis=1)
+        df_sin = t[cands_sin].div(totales, axis=0).mul(100)
+    else:
+        df_sin = pd.DataFrame()
+
+    # Consolidar minoritarios en cada set (solo no-indecisos)
+    df_con_c, cands_con_final = _consolidar_minoritarios(
+        df_con,
+        cands_use,
+        min_pct_visible=min_pct_visible,
+        cands_indecisos=INDECISOS_CATS,
+    )
+    if cands_sin:
+        df_sin_c, cands_sin_final = _consolidar_minoritarios(
+            df_sin,
+            cands_sin,
+            min_pct_visible=min_pct_visible,
+            cands_indecisos=INDECISOS_CATS,
+        )
+    else:
+        df_sin_c, cands_sin_final = pd.DataFrame(), []
+
+    # ── 2. Pintar ambos sets como trazas (uno visible, otro oculto) ─────
+    visible_inicial_con = not esconder_indecisos
     fig = go.Figure()
-    for cand in cands_plot:
-        vals = df_p[cand].values.round(1)
+
+    def _color_serie(cand: str) -> str:
+        if cand == _OTROS_MINOR_LABEL:
+            return _OTROS_MINOR_COLOR
+        return c(cand)
+
+    def _texto_contrastado(color_bg: str) -> str:
+        """Devolver color de texto adecuado al fondo (blanco/negro)."""
+        # Cálculo simple de luminosidad (no tan estricto como WCAG pero
+        # suficiente para colores planos)
+        hexv = color_bg.lstrip("#")
+        if len(hexv) != 6:
+            return "white"
+        r, g, b = int(hexv[0:2], 16), int(hexv[2:4], 16), int(hexv[4:6], 16)
+        lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        return "white" if lum < 0.55 else "#2A2A2A"
+
+    # Trazas "con indecisos"
+    n_con = 0
+    for cand in cands_con_final:
+        col = _color_serie(cand)
+        vals = df_con_c[cand].to_numpy(dtype=float).round(1)
         texts = [f"{v:.0f}%" if v >= 5 else "" for v in vals]
         fig.add_trace(
             go.Bar(
@@ -504,63 +615,116 @@ def chart_stacked_bar(
                 y=dims,
                 x=vals,
                 orientation="h",
-                marker=dict(color=c(cand), line=dict(color="white", width=0.8)),
+                marker=dict(color=col, line=dict(color="white", width=0.8)),
                 text=texts,
                 textposition="inside",
                 insidetextanchor="middle",
+                textfont=dict(color=_texto_contrastado(col), size=12),
                 hovertemplate=f"<b>{cand}</b><br>%{{y}}: <b>%{{x:.1f}}%</b><extra></extra>",
+                visible=visible_inicial_con,
+                legendgroup="con",
             )
         )
+        n_con += 1
 
+    # Trazas "sin indecisos"
+    n_sin = 0
+    for cand in cands_sin_final:
+        col = _color_serie(cand)
+        vals = df_sin_c[cand].to_numpy(dtype=float).round(1)
+        texts = [f"{v:.0f}%" if v >= 5 else "" for v in vals]
+        fig.add_trace(
+            go.Bar(
+                name=cand,
+                y=dims,
+                x=vals,
+                orientation="h",
+                marker=dict(color=col, line=dict(color="white", width=0.8)),
+                text=texts,
+                textposition="inside",
+                insidetextanchor="middle",
+                textfont=dict(color=_texto_contrastado(col), size=12),
+                hovertemplate=f"<b>{cand}</b><br>%{{y}}: <b>%{{x:.1f}}%</b><extra></extra>",
+                visible=not visible_inicial_con,
+                legendgroup="sin",
+            )
+        )
+        n_sin += 1
+
+    # ── 3. Botones que REALMENTE alternan visibilidad de los dos sets ──
     updatemenus = []
-    if toggle_buttons:
-        modo = "Con indecisos" if not esconder_indecisos else "Sin indecisos"
+    if toggle_buttons and n_con > 0 and n_sin > 0:
+        vis_con = [True] * n_con + [False] * n_sin
+        vis_sin = [False] * n_con + [True] * n_sin
         updatemenus = [
             dict(
                 type="buttons",
                 direction="right",
                 x=0.0,
-                y=1.12,
+                y=1.18,
+                xanchor="left",
+                yanchor="bottom",
                 showactive=True,
+                pad=dict(r=4, t=2, b=2),
                 buttons=[
                     dict(
                         label="Con indecisos",
-                        method="relayout",
+                        method="update",
                         args=[
+                            {"visible": vis_con},
                             {
-                                "title.text": f"<b>{titulo}</b><br><sup>{subtitle} · Con indecisos</sup>"
-                            }
+                                "title.text": (
+                                    f"<b>{titulo}</b><br>"
+                                    f"<sup style='color:#666'>{subtitle} · "
+                                    "Con indecisos</sup>"
+                                ),
+                            },
                         ],
                     ),
                     dict(
                         label="Sin indecisos",
-                        method="relayout",
+                        method="update",
                         args=[
+                            {"visible": vis_sin},
                             {
-                                "title.text": f"<b>{titulo}</b><br><sup>{subtitle} · "
-                                "Sin indecisos (normalizado sobre decididos)</sup>"
-                            }
+                                "title.text": (
+                                    f"<b>{titulo}</b><br>"
+                                    f"<sup style='color:#666'>{subtitle} · "
+                                    "Sin indecisos (normalizado sobre decididos)</sup>"
+                                ),
+                            },
                         ],
                     ),
                 ],
             )
         ]
-        del modo  # local diagnostic
 
+    estado_inicial = "Con indecisos" if visible_inicial_con else "Sin indecisos"
     fig.update_layout(
         **LAYOUT_BASE,
         barmode="stack",
         title=dict(
             text=(
-                f"<b>{titulo}</b><br><sup>{subtitle} · "
-                f"{'Sin indecisos' if esconder_indecisos else 'Con indecisos'}</sup>"
+                f"<b>{titulo}</b><br><sup style='color:#666'>{subtitle} · {estado_inicial}</sup>"
             ),
             x=0.01,
+            y=0.97,
             font_size=15,
         ),
         height=height,
+        margin=dict(l=110, r=30, t=110, b=170),
         updatemenus=updatemenus,
-        legend=dict(orientation="h", y=-0.18, x=0, traceorder="normal"),
+        legend=dict(
+            orientation="h",
+            y=-0.22,
+            x=0.5,
+            xanchor="center",
+            traceorder="normal",
+            bgcolor="rgba(255,255,255,0.95)",
+            bordercolor="#E5E7EB",
+            borderwidth=1,
+            font=dict(size=11),
+        ),
     )
     fig.update_xaxes(range=[0, 101], ticksuffix="%", showgrid=True, gridcolor="#e8eaf0")
     fig.update_yaxes(autorange="reversed")

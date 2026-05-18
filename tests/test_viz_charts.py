@@ -451,3 +451,120 @@ class TestComposicionGeneroSchemaReal:
         assert isinstance(fig, go.Figure)
         names = {tr.name for tr in fig.data}
         assert names == {"Hombre"}
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Regresión v0.2.5: chart_stacked_bar — toggle FUNCIONAL + consolidación
+# ════════════════════════════════════════════════════════════════════════════
+@pytest.fixture
+def tablas_stacked_minoritarios() -> dict:
+    """Tabla con 15+ candidatos donde varios son < 3% (minoritarios)."""
+    voto = pd.DataFrame(
+        {
+            "edad_grupo": ["18-34", "35-54", "55+"],
+            "Iván Cepeda": [33.0, 27.0, 22.0],
+            "Abelardo de la Espriella": [13.0, 21.0, 24.0],
+            "Paloma Valencia": [10.0, 12.0, 16.0],
+            "Sergio Fajardo": [4.0, 5.0, 6.0],
+            "Santiago Botero": [1.2, 1.5, 1.8],  # minoritario
+            "Carlos Caicedo": [0.5, 0.6, 0.8],  # minoritario
+            "Mauricio Lizcano": [0.3, 0.4, 0.5],  # minoritario
+            "NS/NR": [10.0, 11.0, 9.0],
+            "No votaría": [7.0, 7.0, 8.0],
+            "Voto en blanco": [4.0, 5.0, 4.0],
+            "Ninguno": [6.0, 3.0, 2.0],
+            "No sé": [4.0, 1.5, 3.0],
+        }
+    )
+    pvt = pd.DataFrame(
+        {
+            "primera_vuelta": list(voto.columns[1:]),
+            "valor": [voto[c].mean() for c in voto.columns[1:]],
+        }
+    )
+    return {"voto_por_edad": voto, "primera_vuelta_total": pvt}
+
+
+class TestStackedBarToggleFuncional:
+    """v0.2.5: los botones Con/Sin indecisos DEBEN alternar datos, no solo título."""
+
+    def test_metodos_de_botones_son_update_no_relayout(self, tablas_stacked_minoritarios):
+        fig = step11.chart_stacked_bar(
+            tablas_stacked_minoritarios,
+            tabla_key="voto_por_edad",
+            dim_col="edad_grupo",
+            titulo="Test",
+        )
+        um = fig.layout.updatemenus
+        assert len(um) == 1, "Debería haber 1 menú de toggle"
+        for btn in um[0].buttons:
+            assert btn.method == "update", (
+                f"Botón {btn.label!r} usa method={btn.method!r}, debe ser 'update' "
+                "(antes era 'relayout', que solo cambiaba el título → bug funcional)."
+            )
+
+    def test_botones_alternan_visibilidad_de_trazas(self, tablas_stacked_minoritarios):
+        """Cada botón debe cambiar `visible` con un patrón de Trues/Falses."""
+        fig = step11.chart_stacked_bar(
+            tablas_stacked_minoritarios,
+            tabla_key="voto_por_edad",
+            dim_col="edad_grupo",
+            titulo="Test",
+        )
+        btn_con, btn_sin = fig.layout.updatemenus[0].buttons
+        vis_con = btn_con.args[0]["visible"]
+        vis_sin = btn_sin.args[0]["visible"]
+        # Listas de booleans, mismo tamaño
+        assert len(vis_con) == len(vis_sin) == len(fig.data)
+        # Una visible donde la otra está oculta y viceversa (perfectamente complementarios)
+        for v1, v2 in zip(vis_con, vis_sin, strict=True):
+            assert v1 != v2, "Los dos botones no son complementarios"
+
+    def test_consolida_candidatos_minoritarios(self, tablas_stacked_minoritarios):
+        from encuestas_lib.viz.charts.step11 import _OTROS_MINOR_LABEL
+
+        fig = step11.chart_stacked_bar(
+            tablas_stacked_minoritarios,
+            tabla_key="voto_por_edad",
+            dim_col="edad_grupo",
+            titulo="Test",
+        )
+        nombres = {t.name for t in fig.data}
+        assert _OTROS_MINOR_LABEL in nombres
+        # Los candidatos con max < 3% NO deben aparecer sueltos
+        for cand in ("Santiago Botero", "Carlos Caicedo", "Mauricio Lizcano"):
+            assert cand not in nombres, f"{cand!r} aparece suelto (debería consolidarse)"
+
+    def test_consolidacion_desactivada_con_min_pct_visible_0(self, tablas_stacked_minoritarios):
+        """min_pct_visible=0 desactiva la consolidación (modo original)."""
+        from encuestas_lib.viz.charts.step11 import _OTROS_MINOR_LABEL
+
+        fig = step11.chart_stacked_bar(
+            tablas_stacked_minoritarios,
+            tabla_key="voto_por_edad",
+            dim_col="edad_grupo",
+            titulo="Test",
+            min_pct_visible=0,
+        )
+        nombres = {t.name for t in fig.data}
+        assert _OTROS_MINOR_LABEL not in nombres
+        # Todos los minoritarios aparecen sueltos
+        for cand in ("Santiago Botero", "Carlos Caicedo", "Mauricio Lizcano"):
+            assert cand in nombres
+
+    def test_leyenda_con_margen_inferior_amplio(self, tablas_stacked_minoritarios):
+        """La leyenda debe quedar FUERA del plot area (margin.b >= 150)."""
+        fig = step11.chart_stacked_bar(
+            tablas_stacked_minoritarios,
+            tabla_key="voto_por_edad",
+            dim_col="edad_grupo",
+            titulo="Test",
+        )
+        assert fig.layout.margin.b >= 150, (
+            f"margin.b={fig.layout.margin.b} insuficiente para acomodar leyenda; "
+            "esto causa que la leyenda se meta encima de las barras."
+        )
+        # Leyenda con y negativo (debajo del plot)
+        assert fig.layout.legend.y < 0, (
+            f"legend.y={fig.layout.legend.y}, debe ser negativo para quedar abajo del plot"
+        )
