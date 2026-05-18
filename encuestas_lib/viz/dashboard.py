@@ -59,14 +59,9 @@ SECCIONES_STEP11: tuple[SeccionMeta, ...] = (
 
 SECCIONES_STEP12: tuple[SeccionMeta, ...] = (
     SeccionMeta(
-        "12_01a_trasvase_centro_escA",
-        "🎯 Centro esc. A",
-        "Fajardo y Claudia: ¿adónde van? (Cepeda vs Espriella)",
-    ),
-    SeccionMeta(
-        "12_01b_trasvase_centro_escB",
-        "🎯 Centro esc. B",
-        "Fajardo y Claudia: ¿adónde van? (Cepeda vs Valencia)",
+        "12_01_trasvase_centro",
+        "🎯 Trasvase del centro",
+        "Fajardo, Claudia, Botero, Barreras: ¿a quién apoyan en 2V? (esc. A y B)",
     ),
     SeccionMeta(
         "12_02_monte_carlo", "🎲 Monte Carlo", "Distribución de resultados — 20 000 simulaciones"

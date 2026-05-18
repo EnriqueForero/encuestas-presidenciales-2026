@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 
+import pandas as pd
+import plotly.graph_objects as go
 import pytest
 
 from encuestas_lib.viz.charts.step12 import (
@@ -234,3 +236,132 @@ class TestConstruirEscenariosConsolidados:
         res_b = _mock_resultado_mc()
         df = construir_escenarios_consolidados(res_a, res_b)
         assert set(df["tipo"]).issubset({"1V", "2V", "Incertidumbre"})
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Regresión v0.2.4: chart_trasvase_centro consolida grises y mueve anotaciones
+# ════════════════════════════════════════════════════════════════════════════
+class TestTrasvaseCentroEstetica:
+    """v0.2.4: 5 grises se consolidan en 'Otros / no decide'; benchmarks
+    fuera del área del plot."""
+
+    @pytest.fixture
+    def tablas_mock(self, monkeypatch):
+        """Mock de la tabla de transferencia con grises distribuidos."""
+        rows = []
+        pcts = {
+            "Sergio Fajardo": {
+                "Iván Cepeda": 42,
+                "Abelardo de la Espriella": 38,
+                "NS/NR": 8,
+                "No votaría": 7,
+                "Voto en blanco": 5,
+            },
+            "Claudia López": {
+                "Iván Cepeda": 64,
+                "Abelardo de la Espriella": 20,
+                "NS/NR": 6,
+                "No votaría": 5,
+                "Ninguno": 5,
+            },
+        }
+        for cand, distrib in pcts.items():
+            for sv_opt, pct in distrib.items():
+                rows.append(
+                    {
+                        "primera_vuelta": cand,
+                        "sv_opcion": sv_opt,
+                        "pct_decididos": pct,
+                        "es_indeciso_sv": sv_opt
+                        in {"NS/NR", "No votaría", "Voto en blanco", "Ninguno"},
+                    }
+                )
+        df = pd.DataFrame(rows)
+
+        # Stub trasvase_candidato — devuelve directamente nuestro mock
+        from encuestas_lib.analysis import electoral as el
+
+        monkeypatch.setattr(
+            el,
+            "trasvase_candidato",
+            lambda tablas, sv_key, cands, **kw: tablas[sv_key],
+        )
+        return {
+            "transfer_sv_cepeda_vs_espriella": df,
+            "transfer_sv_cepeda_vs_valencia": df,
+        }
+
+    def test_consolida_5_grises_en_uno(self, tablas_mock):
+        from encuestas_lib.viz.charts.step12 import (
+            _OTROS_SV_LABEL,
+            chart_trasvase_centro,
+        )
+
+        fig = chart_trasvase_centro(
+            tablas_mock,
+            "transfer_sv_cepeda_vs_espriella",
+            titulo="Test",
+            candidato_a="Iván Cepeda",
+        )
+        nombres = [t.name for t in fig.data]
+        # Solo UNA serie consolidada de grises
+        assert _OTROS_SV_LABEL in nombres
+        for label in ("NS/NR", "No votaría", "Voto en blanco", "Ninguno", "No sé"):
+            assert label not in nombres, f"{label} aparece como serie suelta"
+
+    def test_benchmarks_fuera_del_area_del_plot(self, tablas_mock):
+        from encuestas_lib.viz.charts.step12 import chart_trasvase_centro
+
+        fig = chart_trasvase_centro(
+            tablas_mock,
+            "transfer_sv_cepeda_vs_espriella",
+            titulo="Test",
+            candidato_a="Iván Cepeda",
+        )
+        # Las anotaciones de benchmark usan xref='paper' (fuera del área)
+        anots = list(fig.layout.annotations)
+        paper_anots = [a for a in anots if a.xref == "paper"]
+        # 2 anotaciones de benchmark (mín y máx)
+        assert len(paper_anots) >= 2, (
+            f"Esperaba ≥2 anotaciones xref=paper, encontré {len(paper_anots)}: "
+            f"{[a.text for a in anots]}"
+        )
+
+    def test_chart_doble_combina_2_escenarios_en_un_figure(self, tablas_mock):
+        from encuestas_lib.viz.charts.step12 import chart_trasvase_centro_doble
+
+        fig = chart_trasvase_centro_doble(tablas_mock)
+        # Es un único Figure con 2 subplots
+        assert isinstance(fig, go.Figure)
+        # ≥2 paneles (subplot_titles)
+        # Plotly registra subplot_titles como anotaciones con xref dist a 'paper'
+        # pero la coherencia se valida via len(fig.data) > traces de un solo panel.
+        # Más limpio: verificar que hay trazas en row=1 y row=2 vía xaxis/yaxis.
+        xaxes_in_use = {t.xaxis or "x" for t in fig.data}
+        # Cuando se usa make_subplots(rows=2), los ejes son 'x' y 'x2'
+        assert len(xaxes_in_use) == 2, f"Esperaba 2 ejes X (2 paneles), encontré {xaxes_in_use}"
+
+    def test_chart_doble_leyenda_compartida_no_duplicada(self, tablas_mock):
+        from encuestas_lib.viz.charts.step12 import chart_trasvase_centro_doble
+
+        fig = chart_trasvase_centro_doble(tablas_mock)
+        # Solo las trazas del primer panel tienen showlegend=True
+        nombres_en_leyenda = [t.name for t in fig.data if t.showlegend]
+        # Cada nombre único aparece UNA sola vez en la leyenda (3 series ≈ 3)
+        from collections import Counter
+
+        counts = Counter(nombres_en_leyenda)
+        for nombre, count in counts.items():
+            assert count == 1, f"{nombre!r} aparece {count} veces en leyenda"
+
+    def test_chart_doble_anotacion_benchmark_unica(self, tablas_mock):
+        """En el doble, el benchmark se anota UNA sola vez (caja en margen)."""
+        from encuestas_lib.viz.charts.step12 import chart_trasvase_centro_doble
+
+        fig = chart_trasvase_centro_doble(tablas_mock)
+        anots_paper = [a for a in fig.layout.annotations if a.xref == "paper" and a.yref == "paper"]
+        # 1 caja de benchmark + posibles subtítulos de subplots
+        bench_anots = [a for a in anots_paper if "Doc. forense" in (a.text or "")]
+        assert len(bench_anots) == 1, (
+            f"Esperaba 1 caja de benchmark (no duplicada por panel), encontré {len(bench_anots)}"
+        )

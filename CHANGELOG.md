@@ -3,6 +3,83 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versionado: [SemVer](https://semver.org/).
 
+## [0.2.4] — 2026-05-18 (calidad visual del trasvase del centro)
+
+Mejora estética de calidad editorial (referencia: La Silla Vacía) para la
+gráfica más leída del Step 12. Los 4 problemas reportados en la imagen
+provista por el usuario quedan resueltos.
+
+### Fixed (problemas visuales en `chart_trasvase_centro`)
+
+1. **Anotaciones tapaban las barras** — antes:
+   `add_hline(annotation_position="top left")` colocaba el texto
+   *"Límite superior → Iván Cepeda (doc. forense: 55%)"* dentro del área de
+   plot, sobre las barras de Claudia López. Ahora: anotaciones usan
+   ``xref="paper"`` y se renderizan en el margen derecho, fuera del área de
+   datos, en una caja con borde discreto.
+
+2. **5 grises indistinguibles** — antes: NS/NR (`#B8B8B8`), No votaría
+   (`#D8D8D8`), Ninguno (`#D0D0D0`), Voto en blanco (`#C8C8C8`), No sé
+   (`#E0E0E0`) — virtualmente idénticos en pantalla. Ahora: se consolidan
+   en una sola serie `"Otros / no decide"` con color `#A8AEB8` (gris
+   azulado uniforme). El desglose detallado por categoría aparece en el
+   tooltip al pasar el mouse.
+
+3. **Leyenda flotante entre charts** — antes: dos `fig.show()` consecutivos
+   producían dos leyendas con `y=1.15`, la del primero quedaba pegada al
+   título del segundo. Ahora: nueva función ``chart_trasvase_centro_doble``
+   combina ambos escenarios en una sola figura con
+   ``make_subplots(rows=2, vertical_spacing=0.18)`` y **una sola leyenda
+   compartida abajo**.
+
+4. **Información redundante** — antes: cada panel duplicaba subtítulo,
+   "Candidato en primera vuelta", y benchmarks. Ahora: título único arriba,
+   subtítulos cortos por panel ("Escenario A" / "Escenario B"), eje X
+   solo en el panel inferior, una sola caja de benchmark.
+
+### Added
+- **`chart_trasvase_centro_doble`** — nueva función pública que renderiza
+  los dos escenarios en un único `Figure`. Es la que se usa por defecto en
+  el notebook (cell 12.1).
+- **`_agregar_series_trasvase`** — helper interno reutilizable que
+  consolida grises y agrega las series a una figura o subplot.
+- **`_OTROS_SV_LABEL`, `_OTROS_SV_COLOR`, `_OTROS_SV_CATS`** — constantes
+  documentadas para la consolidación (frozen set).
+- **5 tests de regresión** en `tests/test_viz_step12_params.py`:
+  consolidación de grises, anotaciones fuera del plot, leyenda no
+  duplicada, anotación benchmark única, combinación de 2 escenarios.
+
+### Changed
+- **Cell `scripts/step12_cells/01_transfer_centro.py`** — ahora hace UNA
+  llamada a `chart_trasvase_centro_doble` en vez de dos a
+  `chart_trasvase_centro`. Notebook genera un solo Figure consolidado.
+- **`encuestas_lib/viz/dashboard.py`** — `SECCIONES_STEP12` fusiona los
+  ítems `12_01a_trasvase_centro_escA` y `12_01b_trasvase_centro_escB` en
+  uno solo: `12_01_trasvase_centro`.
+- **Tooltip enriquecido** — al pasar el mouse sobre "Otros / no decide" se
+  muestra el desglose por categoría (NS/NR: X%, No votaría: Y%, …).
+- **Tipografía** — `font_family="Arial, sans-serif"`, tamaños 13 px en
+  labels de barras, contraste blanco/`#2A2A2A` según color de fondo.
+- **Bordes de barras** — `width=1.2` (antes `0.8`) para mejor definición.
+
+### Validation
+- ✅ 191 tests pasan (186 v0.2.3 + 5 nuevos de regresión estética).
+- ✅ `ruff check encuestas_lib tests` → All checks passed!
+- ✅ `ruff format --check` → 44 files already formatted.
+- ✅ Preview HTML generado y validado funcionalmente.
+
+### Decisión arquitectónica documentada
+**No se migró a React + Recharts** aunque el usuario lo sugirió, porque:
+1. Plotly nativo cubre la calidad editorial requerida cuando se usa bien.
+2. El dashboard HTML auto-contenido de Plotly funciona offline sin
+   servidor JS — un requisito del proyecto.
+3. Migrar a React añade un stack adicional (Node, npm, build) que
+   complica reproducibilidad en Colab Free.
+4. Los problemas reportados eran de implementación (anotaciones mal
+   ubicadas, grises mal escogidos), no del motor de visualización.
+
+---
+
 ## [0.2.3] — 2026-05-17 (publicación-ready)
 
 ### Lint y formato listos para CI/CD

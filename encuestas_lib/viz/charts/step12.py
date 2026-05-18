@@ -306,6 +306,130 @@ def construir_escenarios_consolidados(
 # ════════════════════════════════════════════════════════════════════════════
 #  12.1 — Trasvase del centro
 # ════════════════════════════════════════════════════════════════════════════
+# Categorías "indecisas" / no-decisivas que se consolidan en una sola serie gris
+# para evitar 5 grises indistinguibles en la leyenda.
+_OTROS_SV_LABEL: Final[str] = "Otros / no decide"
+_OTROS_SV_COLOR: Final[str] = "#A8AEB8"  # gris azulado uniforme
+_OTROS_SV_CATS: Final[frozenset[str]] = frozenset(
+    {
+        "NS/NR",
+        "No votaría",
+        "Ninguno",
+        "Voto en blanco",
+        "No sé",
+        "Indecisos",
+        "Blanco",
+        "Otro candidato",
+    }
+)
+
+
+def _agregar_series_trasvase(
+    fig: go.Figure,
+    df_t: pd.DataFrame,
+    pv_presentes: Sequence[str],
+    *,
+    row: int | None = None,
+    col: int | None = None,
+    show_legend: bool = True,
+    legend_seen: set[str] | None = None,
+) -> None:
+    """Agregar las series del trasvase a una figura existente.
+
+    Consolida todas las categorías "no decisivas" (NS/NR, blanco, etc.) en
+    una sola serie gris para que la leyenda sea legible.
+
+    Args:
+        fig: figura destino.
+        df_t: DataFrame de :func:`trasvase_candidato`.
+        pv_presentes: candidatos PV ordenados para el eje X.
+        row: fila en subplot (None para figura simple).
+        col: columna en subplot.
+        show_legend: si se muestra la leyenda en esta llamada.
+        legend_seen: set compartido entre llamadas para evitar duplicación
+            cuando se dibuja en múltiples subplots.
+    """
+    if legend_seen is None:
+        legend_seen = set()
+
+    todas_opts = df_t["sv_opcion"].unique().tolist()
+    # Series principales: candidatos del matchup (NO consolidados)
+    sv_principales = [o for o in todas_opts if o not in _OTROS_SV_CATS]
+    # Hay al menos una columna "otros"?
+    hay_otros = any(o in _OTROS_SV_CATS for o in todas_opts)
+
+    # Orden de pintado: primero los principales (abajo), luego "Otros" (arriba)
+    for sv_opt in sv_principales:
+        vals, labels, customs = [], [], []
+        for pv_cand in pv_presentes:
+            sub = df_t[(df_t["primera_vuelta"] == pv_cand) & (df_t["sv_opcion"] == sv_opt)]
+            pct = float(sub["pct_decididos"].iloc[0]) if not sub.empty else 0.0
+            vals.append(pct)
+            labels.append(f"{pct:.0f}%" if pct >= 6 else "")
+            customs.append(
+                f"<b>{pv_cand}</b> → {sv_opt}<br><b>{pct:.1f}%</b> de sus decididos<extra></extra>"
+            )
+        trace = go.Bar(
+            name=sv_opt,
+            x=list(pv_presentes),
+            y=vals,
+            marker=dict(color=c(sv_opt), line=dict(color="white", width=1.2)),
+            text=labels,
+            textposition="inside",
+            insidetextanchor="middle",
+            textfont=dict(color="white", size=13, family="Arial, sans-serif"),
+            hovertemplate=customs,
+            showlegend=show_legend and (sv_opt not in legend_seen),
+            legendgroup=sv_opt,
+        )
+        legend_seen.add(sv_opt)
+        if row is not None and col is not None:
+            fig.add_trace(trace, row=row, col=col)
+        else:
+            fig.add_trace(trace)
+
+    # Serie consolidada "Otros / no decide"
+    if hay_otros:
+        vals, labels, customs = [], [], []
+        for pv_cand in pv_presentes:
+            sub = df_t[
+                (df_t["primera_vuelta"] == pv_cand) & (df_t["sv_opcion"].isin(_OTROS_SV_CATS))
+            ]
+            pct_total = float(sub["pct_decididos"].sum()) if not sub.empty else 0.0
+            # Desglose para tooltip
+            desglose_parts = []
+            for _, r in sub.sort_values("pct_decididos", ascending=False).iterrows():
+                pct_r = float(r["pct_decididos"])
+                if pct_r >= 0.5:
+                    desglose_parts.append(f"  {r['sv_opcion']}: {pct_r:.1f}%")
+            desglose = "<br>".join(desglose_parts) if desglose_parts else "  (todas <0.5%)"
+            vals.append(pct_total)
+            labels.append(f"{pct_total:.0f}%" if pct_total >= 6 else "")
+            customs.append(
+                f"<b>{pv_cand}</b> → {_OTROS_SV_LABEL}<br>"
+                f"<b>{pct_total:.1f}%</b> de sus decididos<br>"
+                f"<i>Desglose:</i><br>{desglose}<extra></extra>"
+            )
+        trace = go.Bar(
+            name=_OTROS_SV_LABEL,
+            x=list(pv_presentes),
+            y=vals,
+            marker=dict(color=_OTROS_SV_COLOR, line=dict(color="white", width=1.2)),
+            text=labels,
+            textposition="inside",
+            insidetextanchor="middle",
+            textfont=dict(color="#2A2A2A", size=12, family="Arial, sans-serif"),
+            hovertemplate=customs,
+            showlegend=show_legend and (_OTROS_SV_LABEL not in legend_seen),
+            legendgroup=_OTROS_SV_LABEL,
+        )
+        legend_seen.add(_OTROS_SV_LABEL)
+        if row is not None and col is not None:
+            fig.add_trace(trace, row=row, col=col)
+        else:
+            fig.add_trace(trace)
+
+
 def chart_trasvase_centro(
     tablas: dict[str, pd.DataFrame],
     sv_col_key: str,
@@ -317,20 +441,36 @@ def chart_trasvase_centro(
         "Santiago Botero",
         "Roy Barreras",
     ),
-    height: int = 430,
+    height: int = 480,
+    benchmark_doc: tuple[float, float] = (35.0, 55.0),
 ) -> go.Figure:
-    """Trasvase de voto del centro político para un matchup dado.
+    """Trasvase de voto del centro político para un matchup dado (chart simple).
+
+    Para uso en notebooks donde se quiere un solo escenario.  Para mostrar
+    los dos escenarios juntos (Cepeda vs Espriella y Cepeda vs Valencia),
+    usar :func:`chart_trasvase_centro_doble`.
+
+    Mejoras estéticas v0.2.4:
+        - Las 5 categorías indecisas (NS/NR, No votaría, Ninguno, Voto en
+          blanco, No sé) se consolidan en una sola serie ``Otros / no decide``
+          con un único color gris; el desglose detallado se muestra en el
+          tooltip.
+        - Los benchmarks doc. forense (líneas punteadas) van anotados FUERA
+          del área de plot (en el margen derecho) para no tapar las barras.
+        - Padding y márgenes recalibrados para legibilidad.
 
     Args:
         tablas: dict de DataFrames del pipeline.
         sv_col_key: clave de la tabla de transferencia en ``tablas``.
         titulo: título principal de la gráfica.
-        candidato_a: candidato A del matchup (para anotar benchmarks doc.).
+        candidato_a: candidato A del matchup (para anotar benchmarks).
         cands_centro: candidatos considerados "del centro".
         height: alto del lienzo.
+        benchmark_doc: tupla ``(low, high)`` con rangos doc. forense (% que
+            recibe ``candidato_a`` del centro).
 
     Returns:
-        ``go.Figure`` con barras apiladas + benchmarks del documento forense.
+        ``go.Figure`` con barras apiladas + benchmarks fuera del área.
     """
     # Import diferido para evitar acoplamiento circular con analysis.electoral
     from encuestas_lib.analysis.electoral import trasvase_candidato
@@ -345,51 +485,38 @@ def chart_trasvase_centro(
         return _figura_vacia("Sin datos para trasvase del centro.")
 
     pv_presentes = df_t["primera_vuelta"].unique().tolist()
-    todas_opts = df_t["sv_opcion"].unique().tolist()
-    sv_opts = [
-        o for o in todas_opts if not df_t.loc[df_t["sv_opcion"] == o, "es_indeciso_sv"].all()
-    ]
-    sv_indec = [o for o in todas_opts if df_t.loc[df_t["sv_opcion"] == o, "es_indeciso_sv"].all()]
 
     fig = go.Figure()
-    for sv_opt in sv_opts + sv_indec:
-        vals, labels, customs = [], [], []
-        for pv_cand in pv_presentes:
-            sub = df_t[(df_t["primera_vuelta"] == pv_cand) & (df_t["sv_opcion"] == sv_opt)]
-            pct = float(sub["pct_decididos"].iloc[0]) if not sub.empty else 0.0
-            vals.append(pct)
-            labels.append(f"{pct:.0f}%" if pct >= 5 else "")
-            customs.append(
-                f"<b>{pv_cand}</b> → {sv_opt}<br><b>{pct:.1f}%</b> de sus decididos<extra></extra>"
-            )
-        fig.add_trace(
-            go.Bar(
-                name=sv_opt,
-                x=pv_presentes,
-                y=vals,
-                marker=dict(color=c(sv_opt), line=dict(color="white", width=0.8)),
-                text=labels,
-                textposition="inside",
-                insidetextanchor="middle",
-                hovertemplate=customs,
-            )
-        )
+    _agregar_series_trasvase(fig, df_t, pv_presentes)
 
-    fig.add_hline(
-        y=35,
-        line_dash="dot",
-        line_color="#7B1E3C",
-        opacity=0.6,
-        annotation_text=f"Límite inferior → {candidato_a} (doc. forense: 35%)",
-        annotation_position="top left",
+    low, high = benchmark_doc
+    fig.add_hline(y=low, line_dash="dot", line_color="#7B1E3C", opacity=0.55)
+    fig.add_hline(y=high, line_dash="dot", line_color="#7B1E3C", opacity=0.55)
+
+    # Anotaciones FUERA del área del plot — margen derecho, no tapan barras.
+    fig.add_annotation(
+        xref="paper",
+        yref="y",
+        x=1.005,
+        y=low,
+        xanchor="left",
+        yanchor="middle",
+        text=f"<b>Doc. forense</b><br>mín → {candidato_a.split()[-1]}<br>({low:.0f}%)",
+        showarrow=False,
+        font=dict(size=10, color="#7B1E3C"),
+        align="left",
     )
-    fig.add_hline(
-        y=55,
-        line_dash="dot",
-        line_color="#7B1E3C",
-        opacity=0.6,
-        annotation_text=f"Límite superior → {candidato_a} (doc. forense: 55%)",
-        annotation_position="top left",
+    fig.add_annotation(
+        xref="paper",
+        yref="y",
+        x=1.005,
+        y=high,
+        xanchor="left",
+        yanchor="middle",
+        text=f"<b>Doc. forense</b><br>máx → {candidato_a.split()[-1]}<br>({high:.0f}%)",
+        showarrow=False,
+        font=dict(size=10, color="#7B1E3C"),
+        align="left",
     )
 
     fig.update_layout(
@@ -397,17 +524,163 @@ def chart_trasvase_centro(
         barmode="stack",
         title=dict(
             text=(
-                f"<b>{titulo}</b><br><sup>% de los decididos del "
-                "candidato PV (excluyendo indecisos SV)</sup>"
+                f"<b>{titulo}</b><br>"
+                "<sup style='color:#666'>% de los decididos del candidato PV "
+                "(excluyendo indecisos SV)</sup>"
             ),
             x=0.01,
             font_size=15,
         ),
         height=height,
-        legend=dict(orientation="h", y=1.15),
+        margin=dict(l=70, r=160, t=80, b=70),
+        legend=dict(
+            orientation="h",
+            y=-0.18,
+            x=0.5,
+            xanchor="center",
+            bgcolor="rgba(255,255,255,0.95)",
+            bordercolor="#E5E7EB",
+            borderwidth=1,
+        ),
     )
-    fig.update_xaxes(title="Candidato en primera vuelta")
+    fig.update_xaxes(title="Candidato en primera vuelta", tickangle=0)
     fig.update_yaxes(range=[0, 102], ticksuffix="%", showgrid=True, gridcolor="#e8eaf0")
+    return fig
+
+
+def chart_trasvase_centro_doble(
+    tablas: dict[str, pd.DataFrame],
+    sv_col_keys: tuple[str, str] = (
+        "transfer_sv_cepeda_vs_espriella",
+        "transfer_sv_cepeda_vs_valencia",
+    ),
+    subtitles: tuple[str, str] = (
+        "Escenario A: Cepeda vs Espriella",
+        "Escenario B: Cepeda vs Valencia",
+    ),
+    candidato_a: str = "Iván Cepeda",
+    cands_centro: Sequence[str] = (
+        "Sergio Fajardo",
+        "Claudia López",
+        "Santiago Botero",
+        "Roy Barreras",
+    ),
+    height: int = 760,
+    benchmark_doc: tuple[float, float] = (35.0, 55.0),
+) -> go.Figure:
+    """Trasvase del centro — los DOS escenarios en una sola figura.
+
+    Resuelve los problemas de la versión legacy v0.2.3 cuando se llamaba
+    ``chart_trasvase_centro`` dos veces en celdas consecutivas:
+
+    - Una sola leyenda compartida abajo (no duplicada entre charts).
+    - Spacing adecuado entre paneles (``vertical_spacing=0.18``).
+    - Benchmarks doc. forense anotados solo una vez, fuera del área.
+    - Subtítulos cortos por panel ("Escenario A" / "Escenario B").
+
+    Args:
+        tablas: dict de DataFrames del pipeline.
+        sv_col_keys: ``(clave escenario A, clave escenario B)``.
+        subtitles: subtítulos cortos por panel.
+        candidato_a: candidato del matchup (suele ser "Iván Cepeda").
+        cands_centro: candidatos considerados "del centro".
+        height: alto total del lienzo (recomendado 720-800 para 2 paneles).
+        benchmark_doc: tupla ``(low, high)`` con rangos doc. forense.
+
+    Returns:
+        ``go.Figure`` con 2 paneles apilados y leyenda única compartida.
+    """
+    from encuestas_lib.analysis.electoral import trasvase_candidato
+
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        subplot_titles=[f"<b>{s}</b>" for s in subtitles],
+        vertical_spacing=0.18,
+        shared_xaxes=False,
+    )
+
+    legend_seen: set[str] = set()
+    for i, sv_col_key in enumerate(sv_col_keys, start=1):
+        df_t = trasvase_candidato(
+            tablas,
+            sv_col_key,
+            list(cands_centro),
+            excluir_indecisos_sv=True,
+        )
+        if df_t.empty:
+            continue
+        pv_presentes = df_t["primera_vuelta"].unique().tolist()
+        _agregar_series_trasvase(
+            fig,
+            df_t,
+            pv_presentes,
+            row=i,
+            col=1,
+            show_legend=True,
+            legend_seen=legend_seen,
+        )
+
+    low, high = benchmark_doc
+    for r in (1, 2):
+        fig.add_hline(y=low, line_dash="dot", line_color="#7B1E3C", opacity=0.55, row=r, col=1)
+        fig.add_hline(y=high, line_dash="dot", line_color="#7B1E3C", opacity=0.55, row=r, col=1)
+
+    # Anotaciones de benchmark FUERA del área (una sola vez, no se repite)
+    fig.add_annotation(
+        xref="paper",
+        yref="paper",
+        x=1.005,
+        y=0.97,
+        xanchor="left",
+        yanchor="top",
+        text=(
+            f"<b>Doc. forense</b><br>"
+            f"Rango esperado<br>{candidato_a.split()[-1]}:<br>"
+            f"<b>{low:.0f}% – {high:.0f}%</b><br>"
+            "<i>(líneas punteadas)</i>"
+        ),
+        showarrow=False,
+        font=dict(size=10.5, color="#7B1E3C"),
+        align="left",
+        bgcolor="rgba(255,255,255,0.92)",
+        bordercolor="#7B1E3C",
+        borderwidth=1,
+        borderpad=6,
+    )
+
+    fig.update_layout(
+        barmode="stack",
+        title=dict(
+            text=(
+                "<b>Trasvase de votos del centro político</b><br>"
+                "<sup style='color:#666'>¿A quién van los votantes de Fajardo, "
+                "Claudia, Botero y Barreras? · % de decididos por candidato PV "
+                "(excluyendo indecisos SV)</sup>"
+            ),
+            x=0.01,
+            y=0.97,
+            font_size=16,
+        ),
+        height=height,
+        margin=dict(l=70, r=170, t=110, b=80),
+        legend=dict(
+            orientation="h",
+            y=-0.10,
+            x=0.5,
+            xanchor="center",
+            bgcolor="rgba(255,255,255,0.95)",
+            bordercolor="#E5E7EB",
+            borderwidth=1,
+        ),
+        font=dict(family="Arial, sans-serif"),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
+    fig.update_yaxes(range=[0, 102], ticksuffix="%", showgrid=True, gridcolor="#e8eaf0")
+    fig.update_xaxes(title=None)
+    # Solo el panel inferior muestra "Candidato en primera vuelta"
+    fig.update_xaxes(title="Candidato en primera vuelta", row=2, col=1)
     return fig
 
 
@@ -1161,6 +1434,7 @@ __all__ = [
     "chart_sensibilidad",
     "chart_techo_rechazo",
     "chart_trasvase_centro",
+    "chart_trasvase_centro_doble",
     "chart_voto_joven",
     "construir_comparativo_polymarket",
     "construir_escenarios_consolidados",
