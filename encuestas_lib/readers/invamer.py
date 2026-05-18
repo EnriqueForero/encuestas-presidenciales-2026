@@ -75,13 +75,19 @@ _REGION_INV_MAP: dict[int | str, str] = {
     2: "Centro - Oriente",
     3: "Eje Cafetero",
     4: "Pacífico",
-    5: "Centro – Sur - Amazonía",
+    # FIX B_NEW_4: era "Centro – Sur - Amazonía" con guion largo (U+2013).
+    # normalize_text elimina el guion largo → "centro sur - amazonia" (sin guion
+    # antes de "sur"), que no coincidía con ninguna clave de REGION_NORM y
+    # producía duplicados en voto_por_region (12 filas en vez de 9).
+    # Se normaliza aquí a guion regular para que coincida con la clave
+    # "centro - sur - amazonia" → "Centro - Sur - Amazonía" en REGION_NORM.
+    5: "Centro - Sur - Amazonía",
     6: "Llano",
     "1": "Caribe",
     "2": "Centro - Oriente",
     "3": "Eje Cafetero",
     "4": "Pacífico",
-    "5": "Centro – Sur - Amazonía",
+    "5": "Centro - Sur - Amazonía",
     "6": "Llano",
 }
 

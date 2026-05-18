@@ -25,6 +25,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from encuestas_lib.config import Config, SurveyEntry
 from encuestas_lib.harmonization import (
     APROBACION_PETRO_NORM,
+    EDAD_COLAPSO_3,
     EDAD_NORM,
     GENERO_RULES,
     REGION_NORM,
@@ -201,7 +202,13 @@ class IngestPipeline:
             self.config = replace(self.config, surveys=resolved_surveys)
 
         out_path = self.config.paths.processed_dir / "encuestas_concatenadas.parquet"
-        return cargar_o_procesar(out_path, self._procesar, forzar=forzar)
+        return cargar_o_procesar(
+            out_path,
+            self._procesar,
+            forzar=forzar,
+            surveys_yaml=self.config.paths.configs_dir / "surveys.yaml",
+            candidates_yaml=self.config.paths.configs_dir / "candidates.yaml",
+        )
 
     # ────────────────────────────────────────────────────────────────────
     def _procesar(self) -> pd.DataFrame:
@@ -269,9 +276,22 @@ class IngestPipeline:
     # ────────────────────────────────────────────────────────────────────
     @staticmethod
     def _normalize_demographics(df: pd.DataFrame) -> pd.DataFrame:
-        """Aplicar normalización vectorizada a columnas demográficas."""
+        """Aplicar normalización vectorizada a columnas demográficas.
+
+        Pasos para edad (en orden):
+            1. ``EDAD_NORM``: unifica las etiquetas crudas de cada encuestadora
+               (e.g. "entre 18 y 24" → "18-24", "55 ó más" → "55+").
+            2. ``EDAD_COLAPSO_3``: colapsa los grupos granulares a los 3 grupos
+               canónicos del PDF de La Silla Vacía: 18-34 / 35-54 / 55+.
+               FIX B_NEW_6: este paso estaba definido pero nunca se aplicaba,
+               produciendo 9 grupos etarios en vez de 3.
+        """
         if "edad_grupo" in df.columns:
+            # Paso 1: normalizar etiquetas crudas por encuestadora
             df["edad_grupo"] = aplicar_mapa_con_int(df["edad_grupo"], EDAD_NORM)
+            # Paso 2 — FIX B_NEW_6: colapsar a 3 grupos canónicos (18-34 / 35-54 / 55+)
+            collapsed = df["edad_grupo"].map(EDAD_COLAPSO_3)
+            df["edad_grupo"] = collapsed.where(collapsed.notna(), df["edad_grupo"])
         if "region" in df.columns:
             df["region"] = aplicar_mapa_con_int(df["region"], REGION_NORM)
         if "genero" in df.columns:

@@ -63,28 +63,40 @@ EDAD_COLAPSO_3: dict[str, str] = {
 # ════════════════════════════════════════════════════════════════════════════
 #  Región
 # ════════════════════════════════════════════════════════════════════════════
+# IMPORTANTE: las claves de este dict deben estar en forma ASCII-normalizada
+# (sin tildes, lowercase, espacios simples) porque `aplicar_mapa_con_int`
+# aplica `normalize_text` al input ANTES de hacer la búsqueda en el dict.
+# Un clave con tildes (p. ej. "bogotá d.c.") nunca coincidirá con el string
+# normalizado "bogota d.c." → regiones duplicadas en el output.
 REGION_NORM: dict[str, str] = {
-    # Invamer códigos numéricos
+    # ── Invamer: códigos numéricos directos ────────────────────────────
     "1": "Caribe",
     "2": "Centro - Oriente",
     "3": "Eje Cafetero",
     "4": "Pacífico",
     "5": "Centro - Sur - Amazonía",
     "6": "Llano",
-    # GAD3 (mayúsculas)
+    # ── GAD3: strings en minúscula ASCII (ya normalizados) ─────────────
     "central": "Central",
     "caribe": "Caribe",
     "oriental": "Centro - Oriente",
     "pacifica": "Pacífico",
     "bogota": "Bogotá",
     "amaz-orin": "Amazonía - Orinoquía",
-    # Atlas Intel
-    "pacífica": "Pacífico",
-    "bogotá d.c.": "Bogotá",
-    "amazonía y orinoquía": "Amazonía - Orinoquía",
-    # Variantes con guion largo (–) → guion normal (-)
-    "centro – sur - amazonía": "Centro - Sur - Amazonía",
+    # ── Invamer vía _REGION_INV_MAP (strings pre-mapeados, luego norm.) ─
+    # "Centro - Sur - Amazonía" → normalize → "centro - sur - amazonia"
     "centro - sur - amazonia": "Centro - Sur - Amazonía",
+    # "Centro – Sur - Amazonía" (guion largo) → normalize → "centro sur - amazonia"
+    # (el guion largo U+2013 desaparece con encode ASCII ignore → doble espacio
+    #  que normalize_text colapsa a uno).  FIX B_NEW_4: clave en forma ASCII.
+    "centro sur - amazonia": "Centro - Sur - Amazonía",
+    # ── Atlas Intel: strings con tildes, ya normalizados por normalize_text ─
+    # "Pacífica" → normalize → "pacifica"  (ya cubierto por clave GAD3)
+    # "Bogotá D.C." → normalize → "bogota d.c."  FIX B_NEW_4: clave ASCII
+    "bogota d.c.": "Bogotá",
+    "bogota d.c": "Bogotá",
+    # "Amazonía y Orinoquía" → normalize → "amazonia y orinoquia"  FIX B_NEW_4
+    "amazonia y orinoquia": "Amazonía - Orinoquía",
 }
 
 

@@ -94,8 +94,20 @@ def transferencia_pv_sv(
         pesos: pesos por (encuestadora, fecha_str).
 
     Returns:
-        DataFrame [primera_vuelta, <sv_col>, valor] donde valor suma 100
-        dentro de cada `primera_vuelta`.
+        DataFrame [primera_vuelta, <sv_col>, valor] donde ``valor`` suma 100
+        dentro de cada ``primera_vuelta``.
+
+    Note:
+        Los porcentajes **incluyen** indecisos de segunda vuelta (NS/NR,
+        Ninguno, No votaría, No sé), por lo que el % de transferencia directa
+        entre candidatos es menor que el publicado por La Silla Vacía, que
+        calcula el porcentaje sobre el subconjunto de encuestados que sí
+        eligieron una opción en SV (excluyendo indecisos).
+
+        FIX B_NEW_3: para replicar el % del PDF (e.g. Abelardo→Paloma = 79%
+        en vez de ~60%), filtrar las filas de SV donde sv_col está en
+        opciones_indecisos antes de llamar esta función, o calcular el %
+        sobre el subconjunto ``sv_col.notna() & ~sv_col.isin(indecisos)``.
     """
     if sv_col not in df.columns or "primera_vuelta" not in df.columns:
         return pd.DataFrame(columns=["primera_vuelta", sv_col, "valor"])
@@ -136,13 +148,29 @@ def techo_potencial_sv(
         rivales_keys: claves de rivales a chequear (sv_cand_vs_rival).
 
     Returns:
-        DataFrame [rival, voto_pv, voto_sv, techo, techo_relativo_pct]
+        DataFrame [rival_key, sv_col, voto_pv_pct, voto_sv_pct,
+        techo_pp, techo_relativo_pct] donde ``voto_pv_pct`` es el %
+        del candidato entre respondentes válidos de PV (excluyendo
+        indecisos/no responde) y ``voto_sv_pct`` es su % de la
+        intención en SV (incluyendo indecisos de SV).
+
+    Note:
+        FIX B_NEW_5: el cálculo anterior usaba
+        ``normalize_within=["primera_vuelta"]`` / ``normalize_within=[sv_col]``
+        que normalizaba cada candidato a 100 % dentro de sí mismo (una sola
+        fila por candidato por encuesta), produciendo ``voto_pv_pct = 4.35 %``
+        y ``voto_sv_pct = 100 %`` para todos.  El fix cambia ambos a
+        ``normalize_within=[]``, que divide por el total de factores de la
+        encuesta → % reales dentro de cada encuesta antes de ponderar.
     """
-    # Voto en PV agregado
+    # ── Voto en PV agregado ────────────────────────────────────────────────
+    # FIX B_NEW_5: normalize_within=[] para obtener % reales por encuesta
+    pv_base = calcular_por_encuesta(df, group_cols=["primera_vuelta"], normalize_within=[])
+    if pv_base.empty:
+        return pd.DataFrame()
+
     pv_table = combinar_entre_encuestas(
-        calcular_por_encuesta(
-            df, group_cols=["primera_vuelta"], normalize_within=["primera_vuelta"]
-        ),
+        pv_base,
         pesos,
         group_cols=["primera_vuelta"],
         normalize_within=[],
@@ -150,10 +178,13 @@ def techo_potencial_sv(
     if pv_table.empty:
         return pd.DataFrame()
 
-    pv_table = pv_table[pv_table["primera_vuelta"].isin(set(candidatos_vigentes))]
-    voto_pv = float(pv_table.loc[pv_table["primera_vuelta"] == candidato_canonical, "valor"].sum())
-    # Renormalizar PV a 100 (excluyendo indecisos): voto sobre válidos
-    total_pv = float(pv_table["valor"].sum())
+    # Filtrar a candidatos vigentes (excluye indecisos / especiales)
+    pv_vigentes = pv_table[pv_table["primera_vuelta"].isin(set(candidatos_vigentes))].copy()
+    voto_pv = float(
+        pv_vigentes.loc[pv_vigentes["primera_vuelta"] == candidato_canonical, "valor"].sum()
+    )
+    # Renormalizar a 100 % entre vigentes (voto sobre decididos)
+    total_pv = float(pv_vigentes["valor"].sum())
     voto_pv_renorm = voto_pv / total_pv * 100 if total_pv > 0 else 0.0
 
     rows: list[dict] = []
@@ -165,17 +196,22 @@ def techo_potencial_sv(
         if sv_col not in df.columns:
             continue
 
+        # FIX B_NEW_5: normalize_within=[] → % real de cada opción en SV
+        sv_base = calcular_por_encuesta(df, group_cols=[sv_col], normalize_within=[])
         sv_table = combinar_entre_encuestas(
-            calcular_por_encuesta(df, group_cols=[sv_col], normalize_within=[sv_col]),
+            sv_base,
             pesos,
             group_cols=[sv_col],
-            normalize_within=[sv_col],
+            normalize_within=[],
         )
         if sv_table.empty:
             continue
-        # Voto SV del candidato (matchear por canónico)
+
+        # % del candidato en SV (sobre todos los que respondieron la encuesta,
+        # incluyendo los que contestaron indecisos en SV)
         mask = sv_table[sv_col] == candidato_canonical
         voto_sv = float(sv_table.loc[mask, "valor"].sum()) if mask.any() else 0.0
+
         techo = voto_sv - voto_pv_renorm
         rel = (techo / voto_pv_renorm * 100) if voto_pv_renorm > 0 else float("nan")
         rows.append(

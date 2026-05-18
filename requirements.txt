@@ -5,3 +5,4 @@ pyreadstat>=1.2
 openpyxl>=3.1
 pyyaml>=6.0
 rich>=13.7
+plotly>=5.18

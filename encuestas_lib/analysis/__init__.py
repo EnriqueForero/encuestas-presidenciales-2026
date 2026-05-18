@@ -75,3 +75,16 @@ __all__ = [
     "verificar_cierres_100",
     "volatilidad_encuestadora",
 ]
+
+# ── Módulo electoral (análisis avanzado de segunda vuelta) ──────────────────
+from encuestas_lib.analysis.electoral import (
+    INDECISOS_SV,
+    MatrizTransferencia,
+    ResultadoSimulacion,
+    TransferRango,
+    calcular_techo_rechazo,
+    resumen_escenarios_2v,
+    sensibilidad_2v,
+    simular_segunda_vuelta,
+    trasvase_candidato,
+)

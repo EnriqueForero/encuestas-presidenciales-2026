@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "encuestas-presidenciales-co"
-version = "0.1.1"
+version = "0.1.2"
 description = "Pipeline modular para ingestión, armonización y análisis de microdatos de encuestas presidenciales de Colombia 2026. Incluye lectores para Atlas Intel, GAD3, Invamer y CNC; ponderación entre encuestas; tablas básicas (intención de voto, demografía, indecisos, house effects) y análisis avanzados (tendencia temporal, transferencia PV→SV, margen de error con n efectivo de Kish, volatilidad por encuestadora)."
 readme = "README.md"
 license = {text = "MIT"}

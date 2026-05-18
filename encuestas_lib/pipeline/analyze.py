@@ -16,6 +16,7 @@ Uso:
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from rich.table import Table
 
 from encuestas_lib.analysis import (
     coalicion_aprobacion,
+    filtrar_voto_vigente,
     indecisos_perfil,
     margen_error_efectivo,
     resolve_weights,
@@ -51,6 +53,50 @@ from encuestas_lib.harmonization import build_harmonizer
 from encuestas_lib.io import ExcelExporter, JSONExporter
 
 console = Console()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+#  Helpers de módulo
+# ════════════════════════════════════════════════════════════════════════════
+def _remap_no_principales(
+    df: pd.DataFrame,
+    cands_principales: Collection[str],
+    opciones_indecisos: Collection[str],
+) -> pd.DataFrame:
+    """Remap first-round votes outside *cands_principales* to "Otro candidato".
+
+    Replica el comportamiento del repo original (``encuestas_concatenadas.xlsx``),
+    donde candidatos fuera del corte de 13 principales eran clasificados como
+    "Otro candidato" en la columna ``primera_vuelta``.  Necesario para que
+    ``indecisos_total`` alcance ~28% (vs ~17% sin el remap).
+
+    Solo se remapean filas con ``primera_vuelta`` no-nulo que no están ni en
+    ``cands_principales`` ni en ``opciones_indecisos`` (blanco, NS/NR, etc.).
+    Las columnas de segunda vuelta **no** se tocan.
+
+    Args:
+        df: microdatos completos (sin filtrar).
+        cands_principales: conjunto de 13 (o N) candidatos "en carrera".
+        opciones_indecisos: categorías especiales (NS/NR, Ninguno, blanco…).
+
+    Returns:
+        Copia de ``df`` con ``primera_vuelta`` remapeada.
+    """
+    if "primera_vuelta" not in df.columns:
+        return df.copy()
+
+    allowed: set[str] = set(cands_principales) | set(opciones_indecisos)
+    out = df.copy()
+    mask_notnull = out["primera_vuelta"].notna()
+    mask_nonallowed = ~out["primera_vuelta"].isin(allowed)
+    n_remapped = int((mask_notnull & mask_nonallowed).sum())
+    if n_remapped:
+        out.loc[mask_notnull & mask_nonallowed, "primera_vuelta"] = "Otro candidato"
+        console.print(
+            f"[yellow]ℹ[/] Remap indecisos: {n_remapped:,} votos no-principales "
+            f"→ 'Otro candidato' (necesario para paridad con repo original)."
+        )
+    return out
 
 
 @dataclass
@@ -98,23 +144,41 @@ class AnalysisPipeline:
         )
         vigentes = harmonizer.vigentes()
 
-        # 2b. Filtrar a vigentes para tablas básicas si corresponde
-        if solo_vigentes:
-            # Opciones especiales (blanco, NS/NR, ninguno) salen de
-            # special_categories del YAML — se preservan junto a vigentes.
-            opciones_indecisos = {
-                str(c.get("canonical"))
-                for c in self.config.special_categories_raw
-                if c.get("canonical")
-            }
-            from encuestas_lib.analysis import filtrar_voto_vigente
-
-            df_basicas = filtrar_voto_vigente(df, vigentes, opciones_indecisos)
+        # 2b. Candidatos "en carrera" y categorías especiales.
+        # Definir ANTES del filtro de df_basicas: ambos bloques los usan.
+        #
+        # FIX B_NEW_1: usar `candidatos_principales` (13 candidatos del corte)
+        # en lugar de `vigentes` (24 vigentes totales).  Con 24 vigentes en
+        # df_basicas, candidatos históricos (~8-10 pp del denominador) diluían
+        # los porcentajes de los 13 principales (ej. Cepeda: 27% → 37%).
+        #
+        # GUARDIA EXPLÍCITA: frozenset() es falsy en Python, por lo que
+        # `frozenset() or vigentes` silenciosamente cae en vigentes aunque el
+        # YAML exista.  Verificamos antes y fallamos de forma audible.
+        _cands_raw: frozenset[str] = self.config.candidatos_principales
+        if not _cands_raw:
             console.print(
-                f"[yellow]ℹ[/] Filtro vigentes activo: "
+                "[bold red]⚠ ADVERTENCIA B_NEW_1:[/] `candidatos_principales` está vacío "
+                "en candidates.yaml.  Asegúrese de que el YAML activo contiene la sección "
+                "`candidatos_principales` con los 13 candidatos del corte.  "
+                "Usando `vigentes` (24 candidatos) como fallback — los porcentajes de "
+                "primera vuelta quedarán DILUIDOS."
+            )
+        cands_principales: frozenset[str] = _cands_raw if _cands_raw else vigentes
+        opciones_indecisos: set[str] = {
+            str(c.get("canonical"))
+            for c in self.config.special_categories_raw
+            if c.get("canonical")
+        }
+
+        # 2c. df_basicas: filas con voto a candidatos principales o especiales.
+        if solo_vigentes:
+            df_basicas = filtrar_voto_vigente(df, cands_principales, opciones_indecisos)
+            console.print(
+                f"[yellow]ℹ[/] Filtro candidatos_principales activo: "
                 f"{len(df_basicas):,} de {len(df):,} filas conservadas "
                 f"({len(df_basicas) / len(df) * 100:.1f}%). "
-                f"Vigentes: {len(vigentes)} · Especiales: {len(opciones_indecisos)}."
+                f"Principales: {len(cands_principales)} · Especiales: {len(opciones_indecisos)}."
             )
         else:
             df_basicas = df
@@ -122,6 +186,15 @@ class AnalysisPipeline:
                 "[yellow]⚠[/] solo_vigentes=False → tablas básicas incluyen "
                 "TODOS los candidatos del histórico (incl. retirados)."
             )
+
+        # 2d. df_indecisos: remap candidatos no-principales → "Otro candidato".
+        #
+        # FIX B_NEW_2: replica el comportamiento de encuestas_concatenadas.xlsx
+        # (repo original), donde candidatos fuera del corte de 13 principales
+        # (Galán, Dávila, Gaviria, Pinzón…) eran clasificados como
+        # "Otro candidato".  Sin este remap, indecisos_total ≈ 17% en lugar
+        # del ~28% que reporta el PDF de La Silla Vacía.
+        df_indecisos = _remap_no_principales(df, cands_principales, opciones_indecisos)
 
         tablas: dict[str, pd.DataFrame] = {}
 
@@ -138,14 +211,12 @@ class AnalysisPipeline:
         tablas["sesgo_genero"] = sesgo_por_encuestadora(df, pesos, "genero")
         tablas["sesgo_edad"] = sesgo_por_encuestadora(df, pesos, "edad_grupo")
         tablas["sesgo_region"] = sesgo_por_encuestadora(df, pesos, "region")
-        # Indecisos: el universo es el original (sin filtrar). Se usa
-        # `candidatos_principales` —no `vigentes`— para definir quién es
-        # candidato "real", replicando el comportamiento del repo original
-        # (CANDIDATOS_REALES = 13 candidatos vigentes al corte). Los votos a
-        # candidatos históricos en encuestas antiguas cuentan como indecisos.
-        cands_principales = self.config.candidatos_principales or vigentes
-        tablas["indecisos_total"] = tabla_indecisos_total(df, pesos, cands_principales)
-        for dim_name, dim_df in tabla_indecisos_demograficas(df, pesos, cands_principales).items():
+        # Indecisos: sobre df_indecisos (con remap), NO sobre df ni df_basicas.
+        # `cands_principales` (13 candidatos del corte) define quién es "real".
+        tablas["indecisos_total"] = tabla_indecisos_total(df_indecisos, pesos, cands_principales)
+        for dim_name, dim_df in tabla_indecisos_demograficas(
+            df_indecisos, pesos, cands_principales
+        ).items():
             tablas[f"indecisos_{dim_name}"] = dim_df
 
         # 4. Tablas avanzadas (NUEVAS)
@@ -248,4 +319,4 @@ if __name__ == "__main__":
     cli()
 
 
-__all__ = ["AnalysisPipeline"]
+__all__ = ["AnalysisPipeline", "_remap_no_principales"]
